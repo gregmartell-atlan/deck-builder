@@ -1,0 +1,9 @@
+{
+  "name": "design",
+  "description": "Design skills — frontend design and design principles for building polished interfaces",
+  "version": "1.0.0",
+  "author": {
+    "name": "Greg Martell",
+    "email": "greg@atlan.com"
+  }
+}

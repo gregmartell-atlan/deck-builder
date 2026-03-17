@@ -1,0 +1,9 @@
+{
+  "name": "deck",
+  "description": "Atlan deck builder — Google Slides decks (strategy, problem-solution, onboarding) and EBR decks with live Sheets charts",
+  "version": "3.0.0",
+  "author": {
+    "name": "Greg Martell",
+    "email": "greg@atlan.com"
+  }
+}

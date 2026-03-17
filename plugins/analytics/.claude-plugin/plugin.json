@@ -1,0 +1,9 @@
+{
+  "name": "analytics",
+  "description": "Atlan usage analytics skills — active users, retention, engagement, features, health, QBR, and discovery across Snowflake usage data",
+  "version": "1.0.0",
+  "author": {
+    "name": "Greg Martell",
+    "email": "greg@atlan.com"
+  }
+}
