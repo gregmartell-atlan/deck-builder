@@ -388,6 +388,11 @@ SW = int(10.0 * INCH)     # slide width: 10"
 SH = int(5.625 * INCH)    # slide height: 5.625" (16:9)
 def emu(inches): return int(inches * INCH)
 M = 0.5                    # margin
+
+# Google Slides default internal padding (not settable via REST API)
+# These shift text off-center in small shapes (circles, pills)
+PAD_LR = emu(0.1)   # left/right default: 0.1"
+PAD_TB = emu(0.05)   # top/bottom default: 0.05"
 ```
 
 ### Required Helper Functions
@@ -399,6 +404,7 @@ Every build script must include these functions. They are split into three categ
 ```python
 def shape(oid, pid, l, t, w, h, fill, stype='RECTANGLE'):
     """Create shape with fill, outline removed, vertical middle alignment."""
+    _register_shape(oid, pid, l, t, w, h)
     reqs.extend([
         {'createShape': {'objectId': oid, 'shapeType': stype,
             'elementProperties': {'pageObjectId': pid,
@@ -416,6 +422,7 @@ def shape(oid, pid, l, t, w, h, fill, stype='RECTANGLE'):
 
 def bordered(oid, pid, l, t, w, h, fill, border, bw=1.0, stype='RECTANGLE'):
     """Shape with solid border + fill, vertical middle alignment."""
+    _register_shape(oid, pid, l, t, w, h)
     reqs.extend([
         {'createShape': {'objectId': oid, 'shapeType': stype,
             'elementProperties': {'pageObjectId': pid,
@@ -435,6 +442,7 @@ def bordered(oid, pid, l, t, w, h, fill, border, bw=1.0, stype='RECTANGLE'):
 
 def dashed(oid, pid, l, t, w, h, fill, border, bw=1.5, stype='ROUND_RECTANGLE'):
     """Shape with dashed border + vertical middle alignment (e.g. ungoverned zones, risk areas)."""
+    _register_shape(oid, pid, l, t, w, h)
     reqs.extend([
         {'createShape': {'objectId': oid, 'shapeType': stype,
             'elementProperties': {'pageObjectId': pid,
@@ -456,48 +464,94 @@ def dashed(oid, pid, l, t, w, h, fill, border, bw=1.5, stype='ROUND_RECTANGLE'):
 
 #### Category 2: Text-in-Shape (insert text INTO already-created shapes)
 
-**CRITICAL RULE**: NEVER overlay a TEXT_BOX on top of a shape. Always insert text directly into the shape using these functions on the shape's objectId.
+**CENTERING FIX**: Google Slides shapes have non-removable default internal padding
+(L=0.1", R=0.1", T=0.05", B=0.05") that the REST API cannot set to zero. This causes
+text in small shapes (circles, pills) to appear off-center.
+
+**Solution**: `text_in()` and `rich_in()` create an expanded TEXT_BOX overlay that
+compensates for the default padding. The textbox is expanded by the padding amounts
+so its own default padding cancels out, placing text at the true center of the shape.
+
+The shape's objectId is used to look up its position via `_shape_registry`. Every call
+to `shape()`, `bordered()`, or `dashed()` auto-registers the shape's position.
 
 ```python
+# Shape registry: tracks position/size of created shapes for text_in() overlay
+_shape_registry = {}
+
+def _register_shape(oid, pid, l, t, w, h):
+    """Record shape position so text_in/rich_in can create aligned overlays."""
+    _shape_registry[oid] = {'pid': pid, 'l': l, 't': t, 'w': w, 'h': h}
+
 def text_in(oid, text, sz=8, bold=False, color=None, align='CENTER'):
-    """Insert single-run text directly into an existing shape. No separate text box."""
+    """Place perfectly centered text on a shape using an expanded textbox overlay.
+    The overlay compensates for Google Slides' default internal padding."""
     color = color or DARK
-    reqs.extend([
-        {'updateShapeProperties': {'objectId': oid,
-            'fields': 'contentAlignment',
-            'shapeProperties': {'contentAlignment': 'MIDDLE'}}},
-        {'insertText': {'objectId': oid, 'text': text}},
-        {'updateTextStyle': {'objectId': oid,
-            'textRange': {'type': 'ALL'},
-            'style': {'fontFamily': FONT, 'fontSize': {'magnitude': sz, 'unit': 'PT'},
-                      'bold': bold, 'foregroundColor': {'opaqueColor': {'rgbColor': color}}},
-            'fields': 'fontFamily,fontSize,bold,foregroundColor'}},
-        {'updateParagraphStyle': {'objectId': oid,
-            'textRange': {'type': 'ALL'},
-            'style': {'alignment': align,
-                      'spaceAbove': {'magnitude': 0, 'unit': 'PT'},
-                      'spaceBelow': {'magnitude': 0, 'unit': 'PT'}},
-            'fields': 'alignment,spaceAbove,spaceBelow'}}
-    ])
+    reg = _shape_registry.get(oid)
+    if not reg:
+        raise ValueError(f"Shape '{oid}' not in registry. Call shape() before text_in().")
+    pid, l, t, w, h = reg['pid'], reg['l'], reg['t'], reg['w'], reg['h']
+    # Expand textbox by default padding so its own padding cancels out
+    tb_l = max(0, l - PAD_LR)
+    tb_t = max(0, t - PAD_TB)
+    tb_w = w + 2 * PAD_LR
+    tb_h = h + 2 * PAD_TB
+    tb_oid = oid + '_ot'  # overlay text
+    reqs.append({'createShape': {'objectId': tb_oid, 'shapeType': 'TEXT_BOX',
+        'elementProperties': {'pageObjectId': pid,
+            'size': {'width': {'magnitude': tb_w, 'unit': 'EMU'},
+                     'height': {'magnitude': tb_h, 'unit': 'EMU'}},
+            'transform': {'scaleX': 1, 'scaleY': 1,
+                'translateX': tb_l, 'translateY': tb_t, 'unit': 'EMU'}}}})
+    reqs.append({'updateShapeProperties': {'objectId': tb_oid,
+        'fields': 'contentAlignment',
+        'shapeProperties': {'contentAlignment': 'MIDDLE'}}})
+    reqs.append({'insertText': {'objectId': tb_oid, 'text': text}})
+    reqs.append({'updateTextStyle': {'objectId': tb_oid,
+        'textRange': {'type': 'ALL'},
+        'style': {'fontFamily': FONT, 'fontSize': {'magnitude': sz, 'unit': 'PT'},
+                  'bold': bold, 'foregroundColor': {'opaqueColor': {'rgbColor': color}}},
+        'fields': 'fontFamily,fontSize,bold,foregroundColor'}})
+    reqs.append({'updateParagraphStyle': {'objectId': tb_oid,
+        'textRange': {'type': 'ALL'},
+        'style': {'alignment': align,
+                  'spaceAbove': {'magnitude': 0, 'unit': 'PT'},
+                  'spaceBelow': {'magnitude': 0, 'unit': 'PT'}},
+        'fields': 'alignment,spaceAbove,spaceBelow'}})
 
 def rich_in(oid, runs, align='START'):
-    """Insert multi-run styled text directly into an existing shape.
+    """Place multi-run styled text on a shape using an expanded textbox overlay.
     runs = [(text, sz, bold, color), ...]"""
-    reqs.append({'updateShapeProperties': {'objectId': oid,
+    reg = _shape_registry.get(oid)
+    if not reg:
+        raise ValueError(f"Shape '{oid}' not in registry. Call shape() before rich_in().")
+    pid, l, t, w, h = reg['pid'], reg['l'], reg['t'], reg['w'], reg['h']
+    tb_l = max(0, l - PAD_LR)
+    tb_t = max(0, t - PAD_TB)
+    tb_w = w + 2 * PAD_LR
+    tb_h = h + 2 * PAD_TB
+    tb_oid = oid + '_ot'
+    reqs.append({'createShape': {'objectId': tb_oid, 'shapeType': 'TEXT_BOX',
+        'elementProperties': {'pageObjectId': pid,
+            'size': {'width': {'magnitude': tb_w, 'unit': 'EMU'},
+                     'height': {'magnitude': tb_h, 'unit': 'EMU'}},
+            'transform': {'scaleX': 1, 'scaleY': 1,
+                'translateX': tb_l, 'translateY': tb_t, 'unit': 'EMU'}}}})
+    reqs.append({'updateShapeProperties': {'objectId': tb_oid,
         'fields': 'contentAlignment',
         'shapeProperties': {'contentAlignment': 'MIDDLE'}}})
     full = ''.join(r[0] for r in runs)
-    reqs.append({'insertText': {'objectId': oid, 'text': full}})
+    reqs.append({'insertText': {'objectId': tb_oid, 'text': full}})
     idx = 0
     for txt_s, sz, bld, clr in runs:
         end = idx + len(txt_s)
-        reqs.append({'updateTextStyle': {'objectId': oid,
+        reqs.append({'updateTextStyle': {'objectId': tb_oid,
             'textRange': {'type': 'FIXED_RANGE', 'startIndex': idx, 'endIndex': end},
             'style': {'fontFamily': FONT, 'fontSize': {'magnitude': sz, 'unit': 'PT'},
                       'bold': bld, 'foregroundColor': {'opaqueColor': {'rgbColor': clr}}},
             'fields': 'fontFamily,fontSize,bold,foregroundColor'}})
         idx = end
-    reqs.append({'updateParagraphStyle': {'objectId': oid,
+    reqs.append({'updateParagraphStyle': {'objectId': tb_oid,
         'textRange': {'type': 'ALL'},
         'style': {'alignment': align,
                   'spaceAbove': {'magnitude': 0, 'unit': 'PT'},
@@ -917,10 +971,13 @@ Dark version:
 
 ## §6 — Anti-Patterns (NEVER DO THESE)
 
-### #1 RULE: No Text-Box-on-Shape
-- **NEVER** create a TEXT_BOX overlaid on a filled/bordered shape
-- **ALWAYS** insert text directly into the shape via `text_in()` or `rich_in()` on the shape's objectId
-- TEXT_BOX (`label()`, `textbox()`) is ONLY for standalone text with no background shape
+### #1 RULE: Padding-Compensated Text Overlay
+- `text_in()` and `rich_in()` automatically create an expanded TEXT_BOX overlay to compensate
+  for Google Slides' default internal padding (L=0.1", R=0.1", T=0.05", B=0.05")
+- The REST API does NOT support setting internal padding to zero, so this overlay technique
+  is the only way to achieve perfect centering
+- `shape()`, `bordered()`, and `dashed()` auto-register positions in `_shape_registry`
+- TEXT_BOX (`label()`, `textbox()`) is for standalone text with no background shape
 
 ### Visual
 - Black backgrounds (use BLUE)
@@ -960,7 +1017,7 @@ Dark version:
 Write a Python script at `/tmp/build_deck_{name}.py`:
 
 ```python
-import pickle, json, time, sys
+import pickle, json, time, sys, webbrowser
 from pathlib import Path
 from googleapiclient.discovery import build
 
@@ -1133,6 +1190,10 @@ print(f"  {S.ARR}  Slides:   check manifest for count")
 print(f"  {S.ARR}  State:    {STATE_FILE}")
 print(f"  {S.ARR}  Manifest: {STATE_FILE.replace('.pkl', '_manifest.json')}")
 print(f"{S.BAR}\n")
+
+# Auto-open in browser
+url = f'https://docs.google.com/presentation/d/{PRES_ID}/edit'
+webbrowser.open(url)
 ```
 
 **Terminal output guidelines for build scripts**:
@@ -1239,7 +1300,15 @@ For large decks (15+ slides), split into two scripts with pickle state passing:
 - Part B: loads state from pickle, builds slides 11+, calls `save_context()` at end
 - Each script reads the manifest to verify current deck state before making changes
 
-### Step 4: Return Results
+### Step 4: Open in Browser & Return Results
+
+**MANDATORY**: After every successful build or update, open the deck in the user's browser:
+```bash
+open "https://docs.google.com/presentation/d/{PRES_ID}/edit"
+```
+Also add `import webbrowser` and `webbrowser.open(url)` at the end of build scripts so it opens automatically when the script finishes.
+
+Then present:
 - Deck URL
 - Slide count + element count (from context save output)
 - Any `[CUSTOMIZE]` markers that need attention

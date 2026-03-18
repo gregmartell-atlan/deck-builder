@@ -3,6 +3,93 @@ name: deck
 description: Build polished Google Slides decks using the Atlan brand system — strategy decks, problem→solution narratives, onboarding kickoffs, and custom presentations
 ---
 
+When this skill is loaded, IMMEDIATELY print this banner to the user (do not skip it):
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+     █████╗ ████████╗██╗      █████╗ ███╗   ██╗
+    ██╔══██╗╚══██╔══╝██║     ██╔══██╗████╗  ██║
+    ███████║   ██║   ██║     ███████║██╔██╗ ██║
+    ██╔══██║   ██║   ██║     ██╔══██║██║╚██╗██║
+    ██║  ██║   ██║   ███████╗██║  ██║██║ ╚████║
+    ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝
+
+              D E C K   B U I L D E R
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  v3.0  ·  Author: Greg Martell  ·  Space Grotesk
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ● Strategy         15-20 slides  Joint reviews, QBRs
+  ● Problem-Solution 10-15 slides  Gap analysis + solutions
+  ● Onboarding        8-12 slides  Kickoff decks
+  ● EBR              12+ slides    Data-driven with live charts
+  ● Custom           Varies        Anything else
+
+  ┌─────────────────────────────────────────────────┐
+  │  ⌘  Quick Start                                 │
+  ├─────────────────────────────────────────────────┤
+  │                                                 │
+  │  → /deck strategy for Zoom                      │
+  │    ╰─ Joint strategy review, 15-20 slides       │
+  │                                                 │
+  │  → /deck problem-solution for Medtronic         │
+  │    ╰─ Gap analysis with matched solutions       │
+  │                                                 │
+  │  → /deck onboarding for Notion                  │
+  │    ╰─ Kickoff deck for new implementation       │
+  │                                                 │
+  │  → /deck custom for Dropbox                     │
+  │    ╰─ Competitive positioning vs Collibra       │
+  │                                                 │
+  │  → /deck:ebr zoom.atlan.com                     │
+  │    ╰─ EBR with Snowflake → Sheets → Slides      │
+  │                                                 │
+  ├─────────────────────────────────────────────────┤
+  │  ⚙  Options & Flags                             │
+  ├─────────────────────────────────────────────────┤
+  │                                                 │
+  │  audience:   "RJ Merriman & Data Platform Team" │
+  │  champion:   "Sarah Chen, VP Data Engineering"  │
+  │  sponsor:    "CTO / CDO"                        │
+  │  goals:      "Reduce discovery time 50%"        │
+  │  threats:    "Collibra, Alation eval in Q3"     │
+  │  quotes:     Real stakeholder quotes to embed   │
+  │  ref:        Google Slides/Docs URL for content │
+  │                                                 │
+  ├─────────────────────────────────────────────────┤
+  │  🧱  Slide Templates Available                  │
+  ├─────────────────────────────────────────────────┤
+  │                                                 │
+  │   1  Title (dark)       8  Big Stats Row        │
+  │   2  Section Divider    9  Table                │
+  │   3  Content + Cards   10  Close (dark)         │
+  │   4  Two-Column Split  11  Before → After       │
+  │   5  Challenge          12  Risk & Mitigation   │
+  │   6  Solution          13  Phased Plan / 90-Day │
+  │   7  Architecture      14  Quote                │
+  │                                                 │
+  ├─────────────────────────────────────────────────┤
+  │  🔗  Companion Skills                           │
+  ├─────────────────────────────────────────────────┤
+  │                                                 │
+  │  /deck:ebr    Data-driven EBR with live charts  │
+  │               Pulls Snowflake → Sheets → Slides │
+  │                                                 │
+  │  /analytics:* Query usage data for deck intel   │
+  │               users, features, retention, health│
+  │                                                 │
+  └─────────────────────────────────────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Brand: #2026D2 Atlan Blue · #62E1FC Cyan · #F34D77 Pink
+  Font: Space Grotesk · Template: Atlan Master v1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+After printing the banner, proceed with the skill as normal (pre-flight check, parameter collection, etc).
+
 # Atlan Deck Builder
 
 You are a senior slide designer and strategist that builds polished Google Slides decks programmatically via the Slides API. Every deck follows the Atlan brand system exactly.
@@ -18,7 +105,7 @@ OAuth is handled automatically by the `get_creds()` function included in every b
 **How it works**:
 1. Checks for existing token at `/tmp/google_slides_token.pickle`
 2. If found and expired → auto-refreshes it
-3. If not found → opens browser for Google login using callback `http://localhost:8765/`
+3. If not found → opens browser for Google login (random local port via `run_local_server(port=0)`)
 4. Saves token for future runs
 
 **Team member setup**: just `pip install` the deps and run any deck build. Browser opens on first run to authenticate.
@@ -56,10 +143,129 @@ The EBR skill queries Snowflake for usage analytics. You need the Snowflake MCP 
 
 ### Pre-flight Check
 
-Before building, verify deps are installed:
+**MANDATORY**: Before generating any build script, run this pre-flight check via Bash. If it fails, fix the issue before proceeding — do NOT generate a build script until pre-flight passes.
+
 ```bash
-python3 -c "import googleapiclient, google.auth, google_auth_oauthlib; print('Dependencies OK')"
+python3 - <<'PREFLIGHT'
+import sys, subprocess, shutil
+
+# ── ANSI ──
+B = '\033[1m'; D = '\033[2m'; R = '\033[0m'
+OK = '\033[92m✓\033[0m'; FAIL = '\033[91m✗\033[0m'; WARN = '\033[93m⚠\033[0m'
+BAR = '\033[94m━' * 52 + '\033[0m'
+
+print(f"\n{BAR}")
+print(f"  {B}ATLAN DECK BUILDER — PRE-FLIGHT CHECK{R}")
+print(f"{BAR}\n")
+
+errors = []
+
+# 1. Python version
+v = sys.version_info
+status = OK if v >= (3, 8) else FAIL
+print(f"  {status}  Python {v.major}.{v.minor}.{v.micro}", end="")
+if v < (3, 8):
+    errors.append("Python 3.8+ required")
+    print(f"  {FAIL} (need 3.8+)")
+else:
+    print()
+
+# 2. pip available
+pip_ok = shutil.which('pip3') or shutil.which('pip')
+print(f"  {OK if pip_ok else FAIL}  pip {'found' if pip_ok else 'NOT FOUND'}")
+if not pip_ok:
+    errors.append("pip not found — install with: python3 -m ensurepip --upgrade")
+
+# 3. Google API deps
+PKGS = {
+    'googleapiclient': 'google-api-python-client',
+    'google.auth': 'google-auth',
+    'google_auth_httplib2': 'google-auth-httplib2',
+    'google_auth_oauthlib': 'google-auth-oauthlib',
+}
+missing = []
+for mod, pkg in PKGS.items():
+    try:
+        __import__(mod)
+        print(f"  {OK}  {pkg}")
+    except ImportError:
+        print(f"  {FAIL}  {pkg} — MISSING")
+        missing.append(pkg)
+
+if missing:
+    print(f"\n  {WARN}  Installing missing packages...")
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--quiet'] + missing)
+    # Verify
+    still_missing = []
+    for mod, pkg in PKGS.items():
+        try:
+            __import__(mod)
+        except ImportError:
+            still_missing.append(pkg)
+    if still_missing:
+        errors.append(f"Failed to install: {', '.join(still_missing)}")
+        print(f"  {FAIL}  Install failed for: {', '.join(still_missing)}")
+    else:
+        print(f"  {OK}  All packages installed successfully")
+
+# 4. Token status
+from pathlib import Path
+import os, time as _t
+TOKEN = '/tmp/google_slides_token.pickle'
+if Path(TOKEN).exists():
+    age_days = (_t.time() - os.path.getmtime(TOKEN)) / 86400
+    if age_days > 7:
+        print(f"  {WARN}  OAuth token exists ({age_days:.0f}d old — may need refresh)")
+    else:
+        print(f"  {OK}  OAuth token exists ({age_days:.1f}d old)")
+else:
+    print(f"  {WARN}  No OAuth token — browser will open on first build for Google login")
+
+# 5. State files
+states = list(Path('/tmp').glob('*_deck_state.pkl'))
+if states:
+    print(f"  {OK}  {len(states)} deck state file(s) in /tmp")
+else:
+    print(f"  {D}  ·  No existing deck states{R}")
+
+print(f"\n{BAR}")
+if errors:
+    print(f"  {FAIL}  {B}PRE-FLIGHT FAILED{R}")
+    for e in errors:
+        print(f"       → {e}")
+    print(f"{BAR}\n")
+    sys.exit(1)
+else:
+    print(f"  {OK}  {B}ALL CHECKS PASSED — READY TO BUILD{R}")
+    print(f"{BAR}\n")
+PREFLIGHT
 ```
+
+If Python is not installed at all, guide the user:
+```
+brew install python3    # macOS
+# or: sudo apt install python3 python3-pip   # Linux
+```
+
+### Timeframes & Lookback Windows
+
+| Resource | Lifetime | What Happens When Expired | Action |
+|----------|----------|--------------------------|--------|
+| OAuth access token | ~60 minutes | `get_creds()` auto-refreshes via refresh token — transparent, no user action | None |
+| OAuth refresh token | ~6 months (or until revoked) | Browser re-opens for Google login | Delete `/tmp/google_slides_token.pickle` and re-run |
+| OAuth token pickle file | Indefinite (until deleted or `/tmp` cleared) | First-run flow triggers again | Re-authenticate via browser |
+| Google Slides API quota | 300 read / 300 write requests per minute per project | `429 Too Many Requests` error | `flush()` auto-batches at 350 with 8s sleep; for very large decks, increase sleep to 12s |
+| Google Drive copy operation | Instant | Template copy fails if no read access | Ask Greg for template access |
+| Deck state pickle (`.pkl`) | Indefinite, but stale after manual slide edits | Manifest won't match actual deck | Re-run `save_context()` to refresh |
+| Deck state manifest (`.json`) | Same as pickle — always generated alongside | Same | Same |
+| `/tmp` files (macOS) | Cleared on reboot or after ~3 days idle | Token + state files disappear | Re-authenticate; rebuild state with `save_context()` |
+| Embedded Sheets charts | Linked — auto-update when Sheet data changes | Charts show stale data if Sheet is deleted | Keep Sheet alive; re-link if needed |
+
+**Practical implications**:
+- **Same-day builds**: Token is cached, everything is fast — no re-auth needed
+- **Next-day builds**: Access token expired but refresh token auto-handles it — still seamless
+- **After reboot**: `/tmp` is cleared — browser opens once for re-auth, then you're good
+- **After months of inactivity**: Refresh token may expire — delete pickle, re-auth via browser
 
 ---
 
@@ -67,7 +273,8 @@ python3 -c "import googleapiclient, google.auth, google_auth_oauthlib; print('De
 
 Parse $ARGUMENTS for:
 
-1. **Deck type** (required): `strategy` | `problem-solution` | `onboarding` | `custom`
+1. **Deck type** (required): `strategy` | `problem-solution` | `onboarding` | `ebr` | `custom`
+   - If user selects `ebr`, redirect to `/deck:ebr` skill (requires Snowflake MCP + domain)
 2. **Customer name** (required): Display name for title slide
 3. **Audience** (optional): Who this is for (e.g., "RJ Merriman & Data Platform Team")
 4. **Reference URLs** (optional): Google Slides/Docs URLs to pull content from
@@ -81,6 +288,7 @@ If the user describes what they want narratively, infer the deck type. Ask only 
 /deck strategy for Zoom — audience: RJ Merriman & Data Platform Team
 /deck problem-solution for Medtronic — 5 gaps in their data governance
 /deck onboarding for Notion — kickoff deck for their data catalog rollout
+/deck:ebr zoom.atlan.com — data-driven EBR with live Sheets charts
 /deck custom for Dropbox — competitive positioning against Collibra
 ```
 
@@ -89,6 +297,7 @@ If the user describes what they want narratively, infer the deck type. Ask only 
 | `strategy` | 15-20 | Joint strategy reviews, QBRs, deep dives |
 | `problem-solution` | 10-15 | Gap analysis with matched solutions |
 | `onboarding` | 8-12 | Kickoff decks for new implementations |
+| `ebr` | 12+ | Data-driven EBR — Snowflake queries → Sheets charts → Slides (use `/deck:ebr`) |
 | `custom` | Varies | Anything else — describe what you want |
 
 **Tips**: Provide as much intel context as possible — the more you give, the fewer `[CUSTOMIZE]` placeholders. Reference existing decks by URL to pull narrative content. For large decks (15+ slides), the skill auto-splits into multiple build scripts.
@@ -179,6 +388,11 @@ SW = int(10.0 * INCH)     # slide width: 10"
 SH = int(5.625 * INCH)    # slide height: 5.625" (16:9)
 def emu(inches): return int(inches * INCH)
 M = 0.5                    # margin
+
+# Google Slides default internal padding (not settable via REST API)
+# These shift text off-center in small shapes (circles, pills)
+PAD_LR = emu(0.1)   # left/right default: 0.1"
+PAD_TB = emu(0.05)   # top/bottom default: 0.05"
 ```
 
 ### Required Helper Functions
@@ -190,6 +404,7 @@ Every build script must include these functions. They are split into three categ
 ```python
 def shape(oid, pid, l, t, w, h, fill, stype='RECTANGLE'):
     """Create shape with fill, outline removed, vertical middle alignment."""
+    _register_shape(oid, pid, l, t, w, h)
     reqs.extend([
         {'createShape': {'objectId': oid, 'shapeType': stype,
             'elementProperties': {'pageObjectId': pid,
@@ -207,6 +422,7 @@ def shape(oid, pid, l, t, w, h, fill, stype='RECTANGLE'):
 
 def bordered(oid, pid, l, t, w, h, fill, border, bw=1.0, stype='RECTANGLE'):
     """Shape with solid border + fill, vertical middle alignment."""
+    _register_shape(oid, pid, l, t, w, h)
     reqs.extend([
         {'createShape': {'objectId': oid, 'shapeType': stype,
             'elementProperties': {'pageObjectId': pid,
@@ -226,6 +442,7 @@ def bordered(oid, pid, l, t, w, h, fill, border, bw=1.0, stype='RECTANGLE'):
 
 def dashed(oid, pid, l, t, w, h, fill, border, bw=1.5, stype='ROUND_RECTANGLE'):
     """Shape with dashed border + vertical middle alignment (e.g. ungoverned zones, risk areas)."""
+    _register_shape(oid, pid, l, t, w, h)
     reqs.extend([
         {'createShape': {'objectId': oid, 'shapeType': stype,
             'elementProperties': {'pageObjectId': pid,
@@ -247,48 +464,94 @@ def dashed(oid, pid, l, t, w, h, fill, border, bw=1.5, stype='ROUND_RECTANGLE'):
 
 #### Category 2: Text-in-Shape (insert text INTO already-created shapes)
 
-**CRITICAL RULE**: NEVER overlay a TEXT_BOX on top of a shape. Always insert text directly into the shape using these functions on the shape's objectId.
+**CENTERING FIX**: Google Slides shapes have non-removable default internal padding
+(L=0.1", R=0.1", T=0.05", B=0.05") that the REST API cannot set to zero. This causes
+text in small shapes (circles, pills) to appear off-center.
+
+**Solution**: `text_in()` and `rich_in()` create an expanded TEXT_BOX overlay that
+compensates for the default padding. The textbox is expanded by the padding amounts
+so its own default padding cancels out, placing text at the true center of the shape.
+
+The shape's objectId is used to look up its position via `_shape_registry`. Every call
+to `shape()`, `bordered()`, or `dashed()` auto-registers the shape's position.
 
 ```python
+# Shape registry: tracks position/size of created shapes for text_in() overlay
+_shape_registry = {}
+
+def _register_shape(oid, pid, l, t, w, h):
+    """Record shape position so text_in/rich_in can create aligned overlays."""
+    _shape_registry[oid] = {'pid': pid, 'l': l, 't': t, 'w': w, 'h': h}
+
 def text_in(oid, text, sz=8, bold=False, color=None, align='CENTER'):
-    """Insert single-run text directly into an existing shape. No separate text box."""
+    """Place perfectly centered text on a shape using an expanded textbox overlay.
+    The overlay compensates for Google Slides' default internal padding."""
     color = color or DARK
-    reqs.extend([
-        {'updateShapeProperties': {'objectId': oid,
-            'fields': 'contentAlignment',
-            'shapeProperties': {'contentAlignment': 'MIDDLE'}}},
-        {'insertText': {'objectId': oid, 'text': text}},
-        {'updateTextStyle': {'objectId': oid,
-            'textRange': {'type': 'ALL'},
-            'style': {'fontFamily': FONT, 'fontSize': {'magnitude': sz, 'unit': 'PT'},
-                      'bold': bold, 'foregroundColor': {'opaqueColor': {'rgbColor': color}}},
-            'fields': 'fontFamily,fontSize,bold,foregroundColor'}},
-        {'updateParagraphStyle': {'objectId': oid,
-            'textRange': {'type': 'ALL'},
-            'style': {'alignment': align,
-                      'spaceAbove': {'magnitude': 0, 'unit': 'PT'},
-                      'spaceBelow': {'magnitude': 0, 'unit': 'PT'}},
-            'fields': 'alignment,spaceAbove,spaceBelow'}}
-    ])
+    reg = _shape_registry.get(oid)
+    if not reg:
+        raise ValueError(f"Shape '{oid}' not in registry. Call shape() before text_in().")
+    pid, l, t, w, h = reg['pid'], reg['l'], reg['t'], reg['w'], reg['h']
+    # Expand textbox by default padding so its own padding cancels out
+    tb_l = max(0, l - PAD_LR)
+    tb_t = max(0, t - PAD_TB)
+    tb_w = w + 2 * PAD_LR
+    tb_h = h + 2 * PAD_TB
+    tb_oid = oid + '_ot'  # overlay text
+    reqs.append({'createShape': {'objectId': tb_oid, 'shapeType': 'TEXT_BOX',
+        'elementProperties': {'pageObjectId': pid,
+            'size': {'width': {'magnitude': tb_w, 'unit': 'EMU'},
+                     'height': {'magnitude': tb_h, 'unit': 'EMU'}},
+            'transform': {'scaleX': 1, 'scaleY': 1,
+                'translateX': tb_l, 'translateY': tb_t, 'unit': 'EMU'}}}})
+    reqs.append({'updateShapeProperties': {'objectId': tb_oid,
+        'fields': 'contentAlignment',
+        'shapeProperties': {'contentAlignment': 'MIDDLE'}}})
+    reqs.append({'insertText': {'objectId': tb_oid, 'text': text}})
+    reqs.append({'updateTextStyle': {'objectId': tb_oid,
+        'textRange': {'type': 'ALL'},
+        'style': {'fontFamily': FONT, 'fontSize': {'magnitude': sz, 'unit': 'PT'},
+                  'bold': bold, 'foregroundColor': {'opaqueColor': {'rgbColor': color}}},
+        'fields': 'fontFamily,fontSize,bold,foregroundColor'}})
+    reqs.append({'updateParagraphStyle': {'objectId': tb_oid,
+        'textRange': {'type': 'ALL'},
+        'style': {'alignment': align,
+                  'spaceAbove': {'magnitude': 0, 'unit': 'PT'},
+                  'spaceBelow': {'magnitude': 0, 'unit': 'PT'}},
+        'fields': 'alignment,spaceAbove,spaceBelow'}})
 
 def rich_in(oid, runs, align='START'):
-    """Insert multi-run styled text directly into an existing shape.
+    """Place multi-run styled text on a shape using an expanded textbox overlay.
     runs = [(text, sz, bold, color), ...]"""
-    reqs.append({'updateShapeProperties': {'objectId': oid,
+    reg = _shape_registry.get(oid)
+    if not reg:
+        raise ValueError(f"Shape '{oid}' not in registry. Call shape() before rich_in().")
+    pid, l, t, w, h = reg['pid'], reg['l'], reg['t'], reg['w'], reg['h']
+    tb_l = max(0, l - PAD_LR)
+    tb_t = max(0, t - PAD_TB)
+    tb_w = w + 2 * PAD_LR
+    tb_h = h + 2 * PAD_TB
+    tb_oid = oid + '_ot'
+    reqs.append({'createShape': {'objectId': tb_oid, 'shapeType': 'TEXT_BOX',
+        'elementProperties': {'pageObjectId': pid,
+            'size': {'width': {'magnitude': tb_w, 'unit': 'EMU'},
+                     'height': {'magnitude': tb_h, 'unit': 'EMU'}},
+            'transform': {'scaleX': 1, 'scaleY': 1,
+                'translateX': tb_l, 'translateY': tb_t, 'unit': 'EMU'}}}})
+    reqs.append({'updateShapeProperties': {'objectId': tb_oid,
         'fields': 'contentAlignment',
         'shapeProperties': {'contentAlignment': 'MIDDLE'}}})
     full = ''.join(r[0] for r in runs)
-    reqs.append({'insertText': {'objectId': oid, 'text': full}})
+    reqs.append({'insertText': {'objectId': tb_oid, 'text': full}})
     idx = 0
     for txt_s, sz, bld, clr in runs:
         end = idx + len(txt_s)
-        reqs.append({'updateTextStyle': {'objectId': oid,
+        reqs.append({'updateTextStyle': {'objectId': tb_oid,
             'textRange': {'type': 'FIXED_RANGE', 'startIndex': idx, 'endIndex': end},
             'style': {'fontFamily': FONT, 'fontSize': {'magnitude': sz, 'unit': 'PT'},
                       'bold': bld, 'foregroundColor': {'opaqueColor': {'rgbColor': clr}}},
             'fields': 'fontFamily,fontSize,bold,foregroundColor'}})
         idx = end
-    reqs.append({'updateParagraphStyle': {'objectId': oid,
+    reqs.append({'updateParagraphStyle': {'objectId': tb_oid,
         'textRange': {'type': 'ALL'},
         'style': {'alignment': align,
                   'spaceAbove': {'magnitude': 0, 'unit': 'PT'},
@@ -517,9 +780,13 @@ When building decks, adopt the relevant persona based on the task:
 - Lighter, more collaborative tone
 - Include customer's team members by name
 
-### EBR (use `/ebr` skill instead)
-- Data-driven with embedded Sheets charts
-- See the dedicated `/ebr` skill for the full pipeline
+### EBR (Executive Business Review)
+- 12+ slides with live embedded Sheets charts
+- Title → Partnership → Value/Gaps → MAU → Engagement → Tiers → Features → Retention → 90-Day Plan → Investment → Exec Summary → Close
+- Data pipeline: 7 Snowflake queries → Google Sheet (7 tabs, 6 charts) → Slides with linked charts
+- Auto-derives insights from data (MAU trends, stickiness benchmarks, retention flags, feature momentum)
+- **Requires**: Snowflake MCP configured + customer domain (e.g., `zoom.atlan.com`)
+- **Invoke via**: `/deck:ebr {domain}` — see the dedicated EBR skill for the full query + build pipeline
 
 ---
 
@@ -704,10 +971,13 @@ Dark version:
 
 ## §6 — Anti-Patterns (NEVER DO THESE)
 
-### #1 RULE: No Text-Box-on-Shape
-- **NEVER** create a TEXT_BOX overlaid on a filled/bordered shape
-- **ALWAYS** insert text directly into the shape via `text_in()` or `rich_in()` on the shape's objectId
-- TEXT_BOX (`label()`, `textbox()`) is ONLY for standalone text with no background shape
+### #1 RULE: Padding-Compensated Text Overlay
+- `text_in()` and `rich_in()` automatically create an expanded TEXT_BOX overlay to compensate
+  for Google Slides' default internal padding (L=0.1", R=0.1", T=0.05", B=0.05")
+- The REST API does NOT support setting internal padding to zero, so this overlay technique
+  is the only way to achieve perfect centering
+- `shape()`, `bordered()`, and `dashed()` auto-register positions in `_shape_registry`
+- TEXT_BOX (`label()`, `textbox()`) is for standalone text with no background shape
 
 ### Visual
 - Black backgrounds (use BLUE)
@@ -747,9 +1017,65 @@ Dark version:
 Write a Python script at `/tmp/build_deck_{name}.py`:
 
 ```python
-import pickle, json, time
+import pickle, json, time, sys, webbrowser
+from pathlib import Path
 from googleapiclient.discovery import build
 
+# ── ANSI Terminal Styling ────────────────────────────
+class S:
+    """Terminal styling constants."""
+    B    = '\033[1m'        # bold
+    D    = '\033[2m'        # dim
+    I    = '\033[3m'        # italic
+    U    = '\033[4m'        # underline
+    R    = '\033[0m'        # reset
+    # Colors
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    PINK = '\033[95m'
+    GRN  = '\033[92m'
+    YEL  = '\033[93m'
+    RED  = '\033[91m'
+    GRY  = '\033[90m'
+    WHT  = '\033[97m'
+    # Symbols
+    OK   = '\033[92m✓\033[0m'
+    FAIL = '\033[91m✗\033[0m'
+    WARN = '\033[93m⚠\033[0m'
+    DOT  = '\033[94m●\033[0m'
+    ARR  = '\033[96m→\033[0m'
+    # Bars
+    BAR  = '\033[94m━' * 52 + '\033[0m'
+    THIN = '\033[90m─' * 52 + '\033[0m'
+
+def banner(title, subtitle=None):
+    print(f"\n{S.BAR}")
+    print(f"  {S.B}{S.BLUE}ATLAN DECK BUILDER{S.R}  {S.GRY}│{S.R}  {S.B}{title}{S.R}")
+    if subtitle:
+        print(f"  {S.D}{subtitle}{S.R}")
+    print(f"{S.BAR}")
+
+def step(num, total, msg):
+    bar = f"{'█' * num}{'░' * (total - num)}"
+    print(f"\n  {S.CYAN}[{bar}]{S.R} {S.B}Step {num}/{total}{S.R} — {msg}")
+
+def done(msg):
+    print(f"  {S.OK}  {msg}")
+
+def warn(msg):
+    print(f"  {S.WARN}  {S.YEL}{msg}{S.R}")
+
+def fail(msg):
+    print(f"  {S.FAIL}  {S.RED}{msg}{S.R}")
+    sys.exit(1)
+
+def info(msg):
+    print(f"  {S.DOT}  {msg}")
+
+def detail(msg):
+    print(f"       {S.GRY}{msg}{S.R}")
+
+# ── Config ───────────────────────────────────────────
 TEMPLATE_ID = '1SOajzd0opagErD3ATLmj77tlSeOEIvlWaqW6l6MfXQU'
 FONT = 'Space Grotesk'
 STATE_FILE = '/tmp/{name}_deck_state.pkl'
@@ -771,70 +1097,114 @@ CLIENT_CONFIG = {
     }
 }
 
+# ── Auth ─────────────────────────────────────────────
 def get_creds():
     """Load, refresh, or create Google OAuth credentials automatically."""
-    from pathlib import Path
     from google.auth.transport.requests import Request
 
-    # Try loading existing token
     if Path(TOKEN_FILE).exists():
         with open(TOKEN_FILE, 'rb') as f:
             creds = pickle.load(f)
         if creds.valid:
+            done('OAuth token loaded (valid)')
             return creds
         if creds.expired and creds.refresh_token:
+            info('Token expired — refreshing...')
             creds.refresh(Request())
             with open(TOKEN_FILE, 'wb') as f:
                 pickle.dump(creds, f)
+            done('Token refreshed')
             return creds
 
-    # No valid token — run OAuth flow with embedded client config
+    warn('No valid token — opening browser for Google login...')
     from google_auth_oauthlib.flow import InstalledAppFlow
     flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
     creds = flow.run_local_server(port=0)
     with open(TOKEN_FILE, 'wb') as f:
         pickle.dump(creds, f)
-    print(f'Token saved to {TOKEN_FILE}')
+    done(f'Token saved to {TOKEN_FILE}')
     return creds
 
+# ── Build ────────────────────────────────────────────
+TOTAL_STEPS = 5  # auth, copy, clean, build, save
+
+banner('Deck Title Here', 'Customer Name · strategy · N slides')
+
+step(1, TOTAL_STEPS, 'Authenticating')
 creds = get_creds()
 slides_svc = build('slides', 'v1', credentials=creds)
 drive_svc  = build('drive',  'v3', credentials=creds)
 
-# Copy template
+step(2, TOTAL_STEPS, 'Copying template')
 body = {'name': 'Deck Title Here'}
 pres = drive_svc.files().copy(fileId=TEMPLATE_ID, body=body).execute()
 PRES_ID = pres['id']
+done(f'Deck created: {PRES_ID}')
+detail(f'https://docs.google.com/presentation/d/{PRES_ID}/edit')
 
-# Get and delete existing slides
+step(3, TOTAL_STEPS, 'Cleaning template slides')
 existing = slides_svc.presentations().get(presentationId=PRES_ID).execute()
 del_ids = [s['objectId'] for s in existing.get('slides', [])]
 
 reqs = []
 for did in del_ids:
     reqs.append({'deleteObject': {'objectId': did}})
+done(f'Queued {len(del_ids)} template slide(s) for deletion')
 
 # [Include all helper functions from §1]
-# [Build slides using templates from §4]
 
-# Batch execution
+# ── Batch Execution ──────────────────────────────────
 def flush():
     if not reqs: return
-    for i in range(0, len(reqs), 350):
+    total_batches = (len(reqs) + 349) // 350
+    for batch_num, i in enumerate(range(0, len(reqs), 350), 1):
         batch = reqs[i:i+350]
+        if total_batches > 1:
+            info(f'Sending batch {batch_num}/{total_batches} ({len(batch)} requests)...')
         slides_svc.presentations().batchUpdate(
             presentationId=PRES_ID, body={'requests': batch}).execute()
         if i + 350 < len(reqs):
+            detail(f'Rate limit pause (8s)...')
             time.sleep(8)
+    done(f'Flushed {len(reqs)} API requests in {total_batches} batch(es)')
     reqs.clear()
 
+step(4, TOTAL_STEPS, 'Building slides')
+# [Build slides using templates from §4]
+# After each logical group of slides, print progress:
+#   info(f'Slide {n}: Title slide')
+#   info(f'Slide {n}: Section divider')
+#   etc.
 flush()
 
+step(5, TOTAL_STEPS, 'Saving context')
 # Save context after every script execution (see §7a)
 save_context(PRES_ID, slides_svc, STATE_FILE)
 
-print(f'https://docs.google.com/presentation/d/{PRES_ID}/edit')
+# ── Final Summary ────────────────────────────────────
+print(f"\n{S.BAR}")
+print(f"  {S.OK}  {S.B}DECK BUILD COMPLETE{S.R}")
+print(f"{S.THIN}")
+print(f"  {S.ARR}  URL:      {S.U}https://docs.google.com/presentation/d/{PRES_ID}/edit{S.R}")
+print(f"  {S.ARR}  Slides:   check manifest for count")
+print(f"  {S.ARR}  State:    {STATE_FILE}")
+print(f"  {S.ARR}  Manifest: {STATE_FILE.replace('.pkl', '_manifest.json')}")
+print(f"{S.BAR}\n")
+
+# Auto-open in browser
+url = f'https://docs.google.com/presentation/d/{PRES_ID}/edit'
+webbrowser.open(url)
 ```
+
+**Terminal output guidelines for build scripts**:
+- Use `banner()` at script start with deck title + metadata
+- Use `step(n, total, msg)` for each major phase (auth, copy, clean, build, save)
+- Use `done()` after successful operations
+- Use `info()` for slide-by-slide progress during build phase
+- Use `detail()` for secondary info (URLs, file paths, batch counts)
+- Use `warn()` for non-fatal issues (token refresh, stale state)
+- Use `fail()` for fatal errors (exits script)
+- End with the summary block showing URL, slide count, file paths
 
 ### Step 2a: Context Saving (REQUIRED after every change)
 
@@ -898,9 +1268,10 @@ def save_context(pres_id, slides_svc, state_file):
     with open(manifest_file, 'w') as f:
         json.dump(state, f, indent=2, default=str)
 
-    print(f'Context saved: {len(slides_info)} slides, {sum(s["elementCount"] for s in slides_info)} elements')
-    print(f'  State: {state_file}')
-    print(f'  Manifest: {manifest_file}')
+    total_els = sum(s['elementCount'] for s in slides_info)
+    done(f'Context saved: {len(slides_info)} slides, {total_els} elements')
+    detail(f'State:    {state_file}')
+    detail(f'Manifest: {manifest_file}')
 ```
 
 **Context file outputs**:
@@ -929,7 +1300,15 @@ For large decks (15+ slides), split into two scripts with pickle state passing:
 - Part B: loads state from pickle, builds slides 11+, calls `save_context()` at end
 - Each script reads the manifest to verify current deck state before making changes
 
-### Step 4: Return Results
+### Step 4: Open in Browser & Return Results
+
+**MANDATORY**: After every successful build or update, open the deck in the user's browser:
+```bash
+open "https://docs.google.com/presentation/d/{PRES_ID}/edit"
+```
+Also add `import webbrowser` and `webbrowser.open(url)` at the end of build scripts so it opens automatically when the script finishes.
+
+Then present:
 - Deck URL
 - Slide count + element count (from context save output)
 - Any `[CUSTOMIZE]` markers that need attention
@@ -1093,16 +1472,22 @@ Before delivering any deck, verify:
 
 | Problem | Fix |
 |---------|-----|
+| `python3: command not found` | Install Python: `brew install python3` (macOS) or `sudo apt install python3 python3-pip` (Linux). Pre-flight check catches this. |
+| `ModuleNotFoundError` | Pre-flight auto-installs missing packages. If it fails: `python3 -m pip install google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib` |
+| `pip: command not found` | Bootstrap pip: `python3 -m ensurepip --upgrade` |
 | Auth error / expired token | Delete `/tmp/google_slides_token.pickle` and re-run — `get_creds()` will re-authenticate via browser |
+| Token gone after reboot | `/tmp` is cleared on macOS reboot — normal. Browser re-opens for auth on next build. |
+| Token works but expires mid-build | Access tokens last ~60min. For very large decks, token auto-refreshes between batches. |
 | "Batch too large" error | Build script should auto-split at 350 requests — if not, check `flush()` function |
-| Charts not appearing in slides | Verify Sheets URL is shared (anyone: reader) |
+| `429 Too Many Requests` | Quota: 300 reads + 300 writes/min. Increase sleep in `flush()` from 8s to 12s for very large decks. |
+| Charts not appearing in slides | Verify Sheets URL is shared (anyone: reader). Linked charts auto-update when Sheet data changes. |
 | `[CUSTOMIZE]` markers everywhere | Provide more intel context when invoking the skill |
 | Template access denied | Ask Greg for read access to template `1SOajzd0opagErD3ATLmj77tlSeOEIvlWaqW6l6MfXQU` |
 | Snowflake query fails (EBR) | Check Snowflake MCP config, verify domain exists in `usage_analytics` |
 | Object ID collision | Each build script generates unique IDs — if editing manually, use 5+ char IDs |
 | Token file not found | `get_creds()` handles this automatically — opens browser for OAuth on first run |
 | `redirect_uri_mismatch` | Use a `Desktop app` OAuth client (not `Web application`) for the embedded credentials, then delete `/tmp/google_slides_token.pickle` and rerun |
-| `ModuleNotFoundError` | Run `pip install google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib` |
+| Stale deck state / manifest mismatch | Re-run `save_context()` against the existing PRES_ID to regenerate. State files in `/tmp` may be cleared after ~3 days idle or on reboot. |
 
 ---
 
