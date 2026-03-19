@@ -47,6 +47,7 @@ Parse `$ARGUMENTS` to extract:
 ### Context Extraction
 Extract from the free-form input:
 - **Customer/company name** — first proper noun or recognizable company name
+- **Salesforce Account ID** — if a string matching `001[A-Za-z0-9]{12,15}` is present, treat it as a Salesforce Account ID. This is the **universal join key** that connects Blueprint, Salesforce, and Linear.
 - **Scenario type** — onboarding, renewal, expansion, pilot/PoC, or "mixed/unclear"
 - **Priority domains** — Finance, Risk, Marketing, Supply Chain, Data Governance, etc.
 - **Stakeholders** — CDO, CIO, Head of Analytics, champions, sponsors
@@ -68,13 +69,40 @@ Do NOT ask clarifying questions. Infer what you can. Mark unknowns as "TBD with 
 
 ---
 
-## Phase 2: Resolve Domain & Account Identity
+## Phase 2: Resolve Account Identity
+
+The **Salesforce Account ID** is the universal join key. All lookups flow from it.
 
 **Use Snowflake connection `my_example_connection`.**
 
-### 2a. Resolve Atlan domain
-Run via `mcp__snowflake__run_snowflake_query`:
+### 2a. If Salesforce ID was provided
+If the user provided a Salesforce Account ID (matches `001[A-Za-z0-9]{12,15}`), use it directly:
 
+```sql
+SELECT sp.NAME, sp.SALESFORCE_ID, sp.STATUS, sp.PLAN_STATUS, sp.PLAN_QUARTER,
+       sp.SIGNOFF_STATE, sp.UPDATED_AT, sp.LINEAR_PROJECT_ID
+FROM BLUEPRINT.APP.CX_SUCCESS_PLANS sp
+WHERE sp.SALESFORCE_ID = '{{SFDC_ID}}'
+AND sp.STATUS = 'active'
+ORDER BY sp.UPDATED_AT DESC LIMIT 3
+```
+
+This immediately gives you: the customer name, existing plan state, signoff status, Linear project link, and how stale it is.
+
+### 2b. If only customer name was provided
+First try to find the Blueprint plan by name:
+```sql
+SELECT sp.NAME, sp.SALESFORCE_ID, sp.STATUS, sp.PLAN_STATUS,
+       sp.SIGNOFF_STATE, sp.UPDATED_AT
+FROM BLUEPRINT.APP.CX_SUCCESS_PLANS sp
+WHERE LOWER(sp.NAME) LIKE '%{{CUSTOMER_LOWER}}%'
+AND sp.STATUS = 'active'
+ORDER BY sp.UPDATED_AT DESC LIMIT 3
+```
+
+If found, extract the `SALESFORCE_ID` for all downstream lookups.
+
+### 2c. Resolve Atlan domain
 ```sql
 SELECT DISTINCT domain
 FROM LANDING.FRONTEND_PROD.PAGES
@@ -86,20 +114,24 @@ LIMIT 10
 - **Multiple** → pick production domain, note choice
 - **Zero** → skip usage analytics. Note "No usage data available."
 
-### 2b. Resolve Salesforce account
-Search Glean for the Salesforce account:
+### 2d. Resolve Salesforce account details
+Search Glean: `mcp__claude_ai_Glean__search` with query `{customer name}` and `app: salescloud`
 
-`mcp__claude_ai_Glean__search` with query: `{customer name}` and `app: salescloud`
-
-Extract from results:
-- **Account name and ID**
+Extract:
 - **ARR / contract value**
-- **Renewal date**
-- **Open opportunities** (e.g., DQS, AI Governance, expansion)
+- **Renewal date** (critical for urgency framing)
+- **Open opportunities** (DQS, AI Governance, expansion)
 - **Account owner / AE**
 - **Key contacts** (EB, champion, technical lead)
 
-If a Salesforce Account ID was provided by the user (e.g., `001Qj000008FPNrIAO`), use it directly to search.
+### 2e. Staleness check
+If a Blueprint plan was found, assess freshness:
+- `UPDATED_AT` > 30 days ago → flag as **"Plan is stale — last updated {N} days ago"**
+- `SIGNOFF_STATE` = 'draft' and plan is > 60 days old → flag as **"Plan was never signed off"**
+- `PLAN_STATUS` is null → flag as **"Plan status not set — may be abandoned"**
+- `LINEAR_PROJECT_ID` is set → check Linear for project status (Phase 4)
+
+This staleness signal is critical for accounts that haven't been touched. It tells the CSM whether to refresh the existing plan or start over.
 
 ---
 
@@ -212,30 +244,32 @@ ORDER BY REPORT_DATE DESC LIMIT 1
 
 These provide: total assets, connector count, enrichment %, lineage coverage, glossary adoption — all critical for grounding KRs.
 
-### 7c. Blueprint Success Plan Data (if exists)
+### 7c. Blueprint Success Plan Data
 
-First find plans by name:
+If a `SALESFORCE_ID` was resolved in Phase 2, use it directly (most reliable). Otherwise fall back to name match.
+
+Get plan items for the most recent active plan:
 ```sql
-SELECT ID, SALESFORCE_ID, NAME, STATUS, PLAN_STATUS, PLAN_QUARTER,
-       SIGNOFF_STATE, SIGNED_BY_NAME, SIGNED_AT, PLAN_NOTES
-FROM BLUEPRINT.APP.CX_SUCCESS_PLANS
-WHERE LOWER(NAME) LIKE '%{{CUSTOMER_LOWER}}%'
-ORDER BY UPDATED_AT DESC LIMIT 5
+SELECT spi.STRATEGIC_PRIORITY, spi.DOMAIN, spi.DOMAIN_GOAL, spi.DATA_INITIATIVE,
+       spi.ATLAN_SOLUTIONS, spi.KEY_METRICS, spi.TIMEFRAME, spi.STATUS, spi.OWNERS,
+       spi.DEPENDENCIES_RISKS, spi.BUSINESS_METRICS, spi.SUPPLY_METRICS, spi.DEMAND_METRICS,
+       spi.AI_GENERATED, spi.HUMAN_VALIDATED_AT, spi.LINEAR_PROJECT_IDS,
+       sp.NAME AS PLAN_NAME, sp.PLAN_STATUS, sp.SIGNOFF_STATE, sp.UPDATED_AT
+FROM BLUEPRINT.EXTRACTOR.SUCCESS_PLAN_ITEMS spi
+JOIN BLUEPRINT.APP.CX_SUCCESS_PLANS sp ON spi.SUCCESS_PLAN_ID = sp.ID
+WHERE sp.SALESFORCE_ID = '{{SFDC_ID}}'
+AND sp.STATUS = 'active'
+AND spi.IS_ACTIVE = TRUE
+ORDER BY sp.UPDATED_AT DESC, spi.SORT_ORDER
+LIMIT 20
 ```
 
-Then get plan items (using the SUCCESS_PLAN_ID from above, or by SALESFORCE_ID):
-```sql
-SELECT STRATEGIC_PRIORITY, DOMAIN, DOMAIN_GOAL, DATA_INITIATIVE,
-       ATLAN_SOLUTIONS, KEY_METRICS, TIMEFRAME, STATUS, OWNERS,
-       DEPENDENCIES_RISKS, BUSINESS_METRICS, SUPPLY_METRICS, DEMAND_METRICS,
-       AI_GENERATED, HUMAN_VALIDATED_AT
-FROM BLUEPRINT.EXTRACTOR.SUCCESS_PLAN_ITEMS
-WHERE SUCCESS_PLAN_ID = '{{PLAN_ID}}'
-AND IS_ACTIVE = TRUE
-ORDER BY SORT_ORDER
-```
-
-These provide: existing success plan structure, signoff state (champion/EB/exec), plan items with strategic priorities, metrics, owners, and whether items were AI-generated vs human-validated.
+This provides:
+- Existing plan items with strategic priorities, metrics, owners
+- Whether items were AI-generated vs human-validated
+- Linear project IDs linked to each item
+- Signoff state and staleness
+- A baseline to compare against (not to blindly adopt)
 
 **If any query fails**, skip it and proceed. Note which data is unavailable.
 
