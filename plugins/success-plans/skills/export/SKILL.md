@@ -24,8 +24,11 @@ From the current conversation, extract:
 - The Key Results list (Key Result 1, 2, 3... with full descriptive text)
 - Strategic Objectives and Domains table
 - Enabling Initiatives list
+- Cross-Source Insights (if generated — from v2 plan skill)
+- Source Inventory (if generated — what data sources were used)
+- Conflicts & Gaps (if generated — where sources disagreed)
 - Customer name, scenario type, year
-- Any Snowflake usage data that was retrieved (MAU, adoption, retention)
+- Any Snowflake usage data that was retrieved (MAU, adoption, retention, supply metrics)
 
 ---
 

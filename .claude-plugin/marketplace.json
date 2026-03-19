@@ -29,8 +29,8 @@
     },
     {
       "name": "success-plans",
-      "description": "Success Plan and OKR generation for Atlan customers — plan creation, realism review, and Sheet/Slides export",
-      "version": "1.0.0",
+      "description": "Success Plan and OKR generation for Atlan customers — multi-source synthesis across Salesforce, Linear, Glean, Gong, Snowflake, and Granola",
+      "version": "2.0.0",
       "source": "./plugins/success-plans",
       "category": "cs"
     }

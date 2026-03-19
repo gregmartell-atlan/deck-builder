@@ -213,19 +213,29 @@ ORDER BY REPORT_DATE DESC LIMIT 1
 These provide: total assets, connector count, enrichment %, lineage coverage, glossary adoption — all critical for grounding KRs.
 
 ### 7c. Blueprint Success Plan Data (if exists)
+
+First find plans by name:
 ```sql
-SELECT * FROM BLUEPRINT.APP.CX_SUCCESS_PLANS
-WHERE LOWER(ACCOUNT_NAME) LIKE '%{{CUSTOMER_LOWER}}%'
+SELECT ID, SALESFORCE_ID, NAME, STATUS, PLAN_STATUS, PLAN_QUARTER,
+       SIGNOFF_STATE, SIGNED_BY_NAME, SIGNED_AT, PLAN_NOTES
+FROM BLUEPRINT.APP.CX_SUCCESS_PLANS
+WHERE LOWER(NAME) LIKE '%{{CUSTOMER_LOWER}}%'
 ORDER BY UPDATED_AT DESC LIMIT 5
 ```
 
+Then get plan items (using the SUCCESS_PLAN_ID from above, or by SALESFORCE_ID):
 ```sql
-SELECT * FROM BLUEPRINT.EXTRACTOR.SUCCESS_PLAN_ITEMS
-WHERE LOWER(ACCOUNT_NAME) LIKE '%{{CUSTOMER_LOWER}}%'
-ORDER BY UPDATED_AT DESC LIMIT 20
+SELECT STRATEGIC_PRIORITY, DOMAIN, DOMAIN_GOAL, DATA_INITIATIVE,
+       ATLAN_SOLUTIONS, KEY_METRICS, TIMEFRAME, STATUS, OWNERS,
+       DEPENDENCIES_RISKS, BUSINESS_METRICS, SUPPLY_METRICS, DEMAND_METRICS,
+       AI_GENERATED, HUMAN_VALIDATED_AT
+FROM BLUEPRINT.EXTRACTOR.SUCCESS_PLAN_ITEMS
+WHERE SUCCESS_PLAN_ID = '{{PLAN_ID}}'
+AND IS_ACTIVE = TRUE
+ORDER BY SORT_ORDER
 ```
 
-These provide existing success plan data from the Blueprint CS platform — may contain plan items, signoffs, recommendations that differ from Glean docs.
+These provide: existing success plan structure, signoff state (champion/EB/exec), plan items with strategic priorities, metrics, owners, and whether items were AI-generated vs human-validated.
 
 **If any query fails**, skip it and proceed. Note which data is unavailable.
 
@@ -287,7 +297,7 @@ Using the cross-source synthesis, produce a structured markdown plan. This is in
 
 - Derive **1-3 Objectives** based on scenario and context
 - Each Objective has at least one Domain and a clear behavioral goal
-- Linked Key Results reference IDs from section 7.2
+- Linked Key Results reference IDs from section 9.2
 
 ### 9.2 Outcome Hypothesis & Key Results
 
