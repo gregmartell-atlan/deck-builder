@@ -15,6 +15,7 @@ Parse $ARGUMENTS for the customer domain. Ask for what's missing:
 2. **Customer display name** (required): e.g., `Zoom` — used on title slide
 3. **Months back** (optional, default 14): How many months of data to pull
 4. **Include workflows?** (optional, default: no): Only ask if user mentions workflows.
+5. **Include supply metrics?** (optional, default: yes): Pull real catalog supply data from `DATA_OPS.ANALYSIS` and `AI_INPUTS.CX`. Set to `no` to use only usage analytics interaction data.
 
 ### Optional Intelligence Context
 If user provides any of these, incorporate into the deck narrative. Otherwise use placeholder text marked `[CUSTOMIZE]`:
@@ -49,6 +50,24 @@ Save all results to `/tmp/{domain_prefix}_all_results.json` as:
   ...
 }
 ```
+
+### Step 1b: Pull Supply Metrics (if enabled)
+
+Run these additional queries for real catalog supply data. These tables are **outside** the `LANDING.FRONTEND_PROD` analytics guardrails — they are separate data sources for supply/catalog metrics.
+
+| Key | Query | Description |
+|-----|-------|-------------|
+| `SUPPLY_CONNECTORS` | `SELECT CONNECTOR_TYPE, TOTAL_ASSETS FROM DATA_OPS.ANALYSIS.ASSET_COUNT_BY_NAME WHERE LOWER(CUSTOMER_NAME) LIKE '%{customer}%' AND TOTAL_ASSETS > 0 ORDER BY TOTAL_ASSETS DESC` | Asset count per connector |
+| `SUPPLY_ENRICHMENT` | `SELECT REPORT_DATE, TOTAL_ASSETS_COUNT, ASSETS_WITH_DESCRIPTIONS, ASSETS_WITH_TERMS, ASSETS_WITH_LINEAGE, ASSETS_WITH_CERTIFICATIONS, ASSETS_UPDATE_COUNT, TOTAL_CONNECTORS, ROUND(ASSETS_WITH_DESCRIPTIONS * 100.0 / NULLIF(TOTAL_ASSETS_COUNT, 0), 2) AS PCT_DESCRIPTIONS, ROUND(ASSETS_WITH_LINEAGE * 100.0 / NULLIF(TOTAL_ASSETS_COUNT, 0), 2) AS PCT_LINEAGE, ROUND(ASSETS_WITH_CERTIFICATIONS * 100.0 / NULLIF(TOTAL_ASSETS_COUNT, 0), 2) AS PCT_CERTIFICATIONS, ROUND(ASSETS_WITH_TERMS * 100.0 / NULLIF(TOTAL_ASSETS_COUNT, 0), 2) AS PCT_TERMS FROM AI_INPUTS.CX.CUSTOMER_WEEKLY_METRICS WHERE LOWER(ACCOUNT_NAME) LIKE '%{customer}%' ORDER BY REPORT_DATE DESC LIMIT 12` | Weekly enrichment metrics |
+| `SUPPLY_GLOSSARY` | `SELECT REPORT_DATE, GLOSSARY_GLOSSARIES, GLOSSARY_CATEGORIES, ASSETS_WITH_TERMS FROM AI_INPUTS.CX.CUSTOMER_WEEKLY_METRICS WHERE LOWER(ACCOUNT_NAME) LIKE '%{customer}%' ORDER BY REPORT_DATE DESC LIMIT 1` | Glossary stats |
+| `SUPPLY_PRODUCTS` | `SELECT REPORT_DATE, TOTAL_DATA_PRODUCTS, DATA_PRODUCTS_CREATED, DATA_PRODUCT_MAU FROM AI_INPUTS.CX.CUSTOMER_WEEKLY_METRICS WHERE LOWER(ACCOUNT_NAME) LIKE '%{customer}%' ORDER BY REPORT_DATE DESC LIMIT 1` | Data products |
+| `SUPPLY_WORKFLOWS` | `SELECT REPORT_DATE, TOTAL_WORKFLOW_RUNS, SUCCESSFUL_WORKFLOW_RUNS, WORKFLOW_SUCCESS_RATE, TOTAL_PLAYBOOK_RUNS FROM AI_INPUTS.CX.CUSTOMER_WEEKLY_METRICS WHERE LOWER(ACCOUNT_NAME) LIKE '%{customer}%' ORDER BY REPORT_DATE DESC LIMIT 1` | Workflow automation |
+
+Add supply results to the same `/tmp/{domain_prefix}_all_results.json` file under keys `SUPPLY_*`.
+
+**IMPORTANT**: The `SUPPLY_CONNECTORS` query uses `DATA_OPS.ANALYSIS.ASSET_COUNT_BY_NAME` (customer name match). The other queries use `AI_INPUTS.CX.CUSTOMER_WEEKLY_METRICS` (account name match). Try both `%customer%` and the full domain if the first returns no results.
+
+**Why supply metrics matter**: The usage analytics tables (`PAGES`) only show assets users *interacted with* — a tiny fraction of the actual catalog. For example, SouthState's PAGES showed 41 assets across 5 connectors, but the real catalog has 1.15M assets across 8 connectors. EBR supply slides must use catalog-level data to tell the accurate story.
 
 ### Step 2: Generate the Build Script
 
@@ -191,11 +210,17 @@ Copy template `1SOajzd0opagErD3ATLmj77tlSeOEIvlWaqW6l6MfXQU`, delete existing sl
 - Strategic goals block (from intel or `[CUSTOMIZE]` placeholders)
 - Key contacts (from intel or `[CUSTOMIZE]`)
 
-**Slide 3: Where We Stand** — Two-column honest assessment
+**Slide 3: Supply Landscape** (if supply metrics enabled) — What's in the catalog
+- Left panel (BLUE bg): headline stats — connector count, total assets, key enrichment %
+- Right side: top 3 connector cards with real asset counts (from `SUPPLY_CONNECTORS`)
+- Bottom insight bar: frame supply strength or gap based on enrichment %
+- **Use `styled_element()` for multi-styled text** (see Safe Text Styling below)
+
+**Slide 4: Where We Stand** — Two-column honest assessment
 - Left: "DELIVERING VALUE" — 5 strength cards (BLUE accent, LTGRAY bg)
 - Right: "GAPS TO ADDRESS" — 5 gap cards (PINK accent, LTPINK bg)
 - Bottom truth bar summarizing the state
-- Content from data analysis (auto-derive from metrics) or intel
+- Content from data analysis (auto-derive from metrics AND supply enrichment data) or intel
 
 **Slide 4: MAU Trend** — Full-width Sheets chart (chartId=1)
 - ADOPTION pill, title, subtitle with stats
@@ -232,6 +257,74 @@ Copy template `1SOajzd0opagErD3ATLmj77tlSeOEIvlWaqW6l6MfXQU`, delete existing sl
 **Slide 12: Close** — Full `BLUE` background matching title slide
 - Bold statement + 3 asks
 - Next steps card with owner + timeline
+
+#### Safe Text Styling (REQUIRED for multi-styled text)
+
+**NEVER hardcode character indices** for text styling — this causes off-by-one errors that produce garbled font sizes. Always use the `styled_element()` pattern that computes indices from segments automatically:
+
+```python
+def styled_element(oid, segments):
+    """Build text from segments, auto-computing indices.
+    Each segment: (text, sz, bold, color). Returns ops list."""
+    full = ''.join(s[0] for s in segments)
+    ops = [
+        {'deleteText': {'objectId': oid, 'textRange': {'type': 'ALL'}}},
+        {'insertText': {'objectId': oid, 'insertionIndex': 0, 'text': full}},
+    ]
+    idx = 0
+    for text, sz, bold, color in segments:
+        end = idx + len(text)
+        s = {'fontFamily': FONT}
+        fields = ['fontFamily']
+        if sz:
+            s['fontSize'] = {'magnitude': sz, 'unit': 'PT'}
+            fields.append('fontSize')
+        if bold is not None:
+            s['bold'] = bold
+            fields.append('bold')
+        if color:
+            s['foregroundColor'] = {'opaqueColor': {'rgbColor': color}}
+            fields.append('foregroundColor')
+        ops.append({'updateTextStyle': {
+            'objectId': oid,
+            'textRange': {'type': 'FIXED_RANGE', 'startIndex': idx, 'endIndex': end},
+            'style': s, 'fields': ','.join(fields),
+        }})
+        idx = end
+    return ops
+```
+
+**Usage** — define text as styled segments, indices computed automatically:
+```python
+reqs += styled_element('s3_ltxt', [
+    ("SUPPLY",           10, True,  CYAN),
+    ("\n\n",              6, None,  WHITE),
+    ("What\u2019s in the\nCatalog", 20, True, WHITE),
+    ("\n\n",              6, None,  WHITE),
+    ("8",                48, True,  CYAN),
+    ("\n",                6, None,  WHITE),
+    ("active connectors", 12, False, WHITE),
+])
+```
+
+Use `styled_element()` for: supply landscape left panel, connector cards, insight bars, KPI cards, gap zone text — any element with mixed font sizes or styles.
+
+#### Supply Metrics on Slides
+
+When supply data is available, use it to populate:
+- **Supply slide**: connector count, total assets, top 3 connectors with asset counts, enrichment %
+- **Gap slide**: reframe from "missing connectors" to "catalog depth gaps" (tagging %, lineage %, terms %, governance coverage)
+- **Before/After**: use real enrichment baselines as "before", target % as "after"
+- **Roadmap Phase 1**: "Deepen Catalog" (tagging, lineage, owners) instead of "Expand Supply" — unless the customer genuinely has few connectors
+- **KPI cards**: real connector count and enrichment baselines
+- **Investment slide**: cost per asset, total catalog size
+
+**Supply narrative decision tree**:
+- If connectors >= 5 AND total assets > 100K → frame as "strong supply, deepen quality"
+- If connectors < 5 OR total assets < 50K → frame as "expand supply + connect more sources"
+- If PCT_LINEAGE > 50% → "lineage is a strength"
+- If PCT_DESCRIPTIONS < 30% → "description coverage is a gap"
+- If PCT_TERMS < 10% → "glossary adoption is low"
 
 #### Execution
 - Batch API requests in groups of 350

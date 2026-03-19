@@ -548,6 +548,45 @@ def new_slide(sid):
         'slideLayoutReference': {'predefinedLayout': 'BLANK'}}})
 ```
 
+#### Category 4: Safe Multi-Style Text Replacement
+
+**CRITICAL**: Never hardcode character indices for text styling. Use `styled_element()` which computes indices from segments automatically, preventing off-by-one font bleed errors.
+
+```python
+def styled_element(oid, segments):
+    """Replace text in existing element with auto-computed style indices.
+    segments: [(text, font_size, bold, color), ...]
+    Returns list of API request dicts — append to reqs with: reqs += styled_element(...)"""
+    full = ''.join(s[0] for s in segments)
+    ops = [
+        {'deleteText': {'objectId': oid, 'textRange': {'type': 'ALL'}}},
+        {'insertText': {'objectId': oid, 'insertionIndex': 0, 'text': full}},
+    ]
+    idx = 0
+    for text, sz, bold, color in segments:
+        end = idx + len(text)
+        s = {'fontFamily': FONT}
+        fields = ['fontFamily']
+        if sz:
+            s['fontSize'] = {'magnitude': sz, 'unit': 'PT'}
+            fields.append('fontSize')
+        if bold is not None:
+            s['bold'] = bold
+            fields.append('bold')
+        if color:
+            s['foregroundColor'] = {'opaqueColor': {'rgbColor': color}}
+            fields.append('foregroundColor')
+        ops.append({'updateTextStyle': {
+            'objectId': oid,
+            'textRange': {'type': 'FIXED_RANGE', 'startIndex': idx, 'endIndex': end},
+            'style': s, 'fields': ','.join(fields),
+        }})
+        idx = end
+    return ops
+```
+
+**When to use**: updating existing deck elements, supply landscape panels, any text with mixed font sizes (especially large stat numbers next to small labels). Use `reqs += styled_element(oid, segments)` instead of manual `deleteText` + `insertText` + `updateTextStyle` with hardcoded indices.
+
 #### Decision Table: Which Function to Use
 
 | Situation | Pattern |
@@ -558,6 +597,7 @@ def new_slide(sid):
 | Slide title, subtitle, caption | `label()` — standalone, no shape |
 | Multi-styled free text | `textbox()` — standalone, no shape |
 | Text on dashed zone | `dashed()` then `text_in()` on same oid |
+| Update existing element text | `styled_element()` — auto-index, replaces content |
 | Gap/challenge numbered list | `numbered_circle()` + adjacent `textbox()` |
 | Customer/analyst quote | `quote_block()` — accent bar + text |
 | Risk/mitigation row | `risk_row()` — dual-dot row with owner |
@@ -726,11 +766,19 @@ When building decks, adopt the relevant persona based on the task:
 - Lighter, more collaborative tone
 - Include customer's team members by name
 
+### CS Kickoff (Full Template)
+- 19 slides — comprehensive onboarding with custom visuals
+- Title → Agenda → CX Team → Journey (matplotlib curve) → Rollout (swim lanes) → Value Journey (matplotlib S-curve) → Strategic Alignment → Driving Factors (4-quadrant) → Value Breakdown (3-pillar tree) → Supply & Demand (matplotlib S-curves) → Domain Prioritization (bubble chart) → Implementation → Integration Timeline → Engagement Model → Initiatives Matrix → Next Steps → Quote → Close
+- Uses matplotlib → PNG → `createImage` for organic curves (journey path, value curve, supply/demand)
+- Reference template: `1jk9zawbJIfwiWlEVYmXrsSf4WVS0IeBEClXs7UXzjFA`
+- Build scripts: `/tmp/build_kickoff_template_a.py`, `/tmp/build_kickoff_template_b.py`
+
 ### EBR (Executive Business Review)
 - 12+ slides with live embedded Sheets charts
-- Title → Partnership → Value/Gaps → MAU → Engagement → Tiers → Features → Retention → 90-Day Plan → Investment → Exec Summary → Close
-- Data pipeline: 7 Snowflake queries → Google Sheet (7 tabs, 6 charts) → Slides with linked charts
-- Auto-derives insights from data (MAU trends, stickiness benchmarks, retention flags, feature momentum)
+- Title → Partnership → Supply Landscape → Value/Gaps → MAU → Engagement → Tiers → Features → Retention → 90-Day Plan → Investment → Exec Summary → Close
+- Data pipeline: 7 usage analytics queries + 5 supply metrics queries → Google Sheet → Slides with linked charts
+- **Supply metrics** (enabled by default): pulls real catalog data from `DATA_OPS.ANALYSIS.ASSET_COUNT_BY_NAME` (assets per connector) and `AI_INPUTS.CX.CUSTOMER_WEEKLY_METRICS` (enrichment %, glossary, data products, workflows)
+- Auto-derives insights from data (MAU trends, stickiness benchmarks, retention flags, feature momentum, supply depth analysis)
 - **Requires**: Snowflake MCP configured + customer domain (e.g., `zoom.atlan.com`)
 - **Invoke via**: `/deck:ebr {domain}` — see the dedicated EBR skill for the full query + build pipeline
 
@@ -1255,6 +1303,7 @@ For large decks (15+ slides), split into two scripts with pickle state passing:
 | Medtronic problem-solution | `1TQ3gQckXmPfzP0ZPS5XLpCyCt7wUtHlorBXblvCI7YQ` | 16 slides: title, arch diagram, arch mapping, silos, gaps, solutions, matrix, business case, close |
 | Atlan Deep Dive Architecture | `17YADG2rs4Moe9yXE60wKkfll8R4deDsPQDA0Yq0NE9k` | Reference for architecture mapping layout (slide `g3ccfc137500_1_0`) |
 | Template | `1SOajzd0opagErD3ATLmj77tlSeOEIvlWaqW6l6MfXQU` | Base template for copying |
+| CS Kickoff Template | `1jk9zawbJIfwiWlEVYmXrsSf4WVS0IeBEClXs7UXzjFA` | 19 slides: onboarding kickoff with matplotlib curves (journey, value, supply/demand) |
 
 ---
 
@@ -1367,6 +1416,106 @@ Reusable slide layout patterns proven in production decks.
 - CYAN arrow shapes between phases (thin rectangles)
 - Bottom bar: LTCYAN `shape()` with progression statement via `rich_in()`
 **Key**: Each phase needs: number, title, timeframe, deliverables, owner. Arrows show sequence.
+
+---
+
+## §9a — Matplotlib Curve Technique
+
+The Slides API **cannot** create freeform bezier paths, filled area curves, or custom polygons. For organic/curved visuals, use the **matplotlib → PNG → createImage** hybrid approach.
+
+### When to Use
+- Value journey curves (ascending S-curve with valley)
+- Supply & demand S-curves with area fill
+- Customer journey connected-phase paths
+- Any visual requiring bezier curves, area fills, or gradients
+
+### Why the API Can't Do This
+- No `createPath`, `createFreeform`, or bezier primitives
+- `CUSTOM` shapeType is **read-only** (imported from PPT/manual only)
+- `CURVED_CONNECTOR` lines can't be filled underneath
+- `WAVE`/`ARC` shapes are fixed geometry — no control over amplitude
+
+### Pipeline
+
+```
+matplotlib (render curve) → PNG (transparent bg) → Google Drive (public) → createImage (in slide)
+```
+
+### Required Dependencies
+
+```bash
+pip install matplotlib numpy scipy
+```
+
+### Pattern: Render + Upload + Insert
+
+```python
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from scipy.interpolate import make_interp_spline
+from googleapiclient.http import MediaFileUpload
+
+# 1. RENDER — generate smooth curve as transparent PNG
+milestone_x = np.array([0.5, 1.8, 3.0, 4.2, 5.5, 6.5, 7.2, 8.0, 9.2])
+milestone_y = np.array([0.8, 1.8, 3.5, 4.8, 6.2, 4.5, 3.8, 5.5, 7.0])
+
+x_smooth = np.linspace(milestone_x[0], milestone_x[-1], 300)
+spline = make_interp_spline(milestone_x, milestone_y, k=3)
+y_smooth = spline(x_smooth)
+
+fig, ax = plt.subplots(figsize=(10, 4.2), dpi=200)
+ax.fill_between(x_smooth, y_smooth, alpha=0.12, color='#2026D2')
+ax.plot(x_smooth, y_smooth, color='#2026D2', linewidth=2.5)
+ax.scatter(milestone_x, milestone_y, color='#2026D2', s=50, zorder=5,
+           edgecolors='white', linewidths=1.5)
+ax.axis('off')
+fig.patch.set_alpha(0)
+ax.patch.set_alpha(0)
+fig.savefig('/tmp/curve.png', dpi=200, bbox_inches='tight',
+            transparent=True, pad_inches=0.05)
+plt.close()
+
+# 2. UPLOAD — to Google Drive with public access
+file_meta = {'name': 'curve.png', 'mimeType': 'image/png'}
+media = MediaFileUpload('/tmp/curve.png', mimetype='image/png')
+uploaded = drive_svc.files().create(body=file_meta, media_body=media, fields='id').execute()
+file_id = uploaded['id']
+drive_svc.permissions().create(
+    fileId=file_id, body={'type': 'anyone', 'role': 'reader'}).execute()
+image_url = f'https://drive.google.com/uc?export=download&id={file_id}'
+
+# 3. INSERT — into slide via createImage
+reqs.append({'createImage': {'objectId': 'curve_img',
+    'url': image_url,
+    'elementProperties': {'pageObjectId': slide_id,
+        'size': {'width': {'magnitude': emu(8.5), 'unit': 'EMU'},
+                 'height': {'magnitude': emu(3.6), 'unit': 'EMU'}},
+        'transform': {'scaleX': 1, 'scaleY': 1,
+            'translateX': emu(0.5), 'translateY': emu(0.55), 'unit': 'EMU'}}}})
+```
+
+### Hybrid Layering Rule
+- **Image layer**: matplotlib PNG for the visual (curves, fills, dots, arrows)
+- **Text layer**: native Slides text elements overlaid on top for editability
+- Use `data_to_slide(dx, dy)` mapping function to convert matplotlib data coordinates to slide EMU positions for label placement
+
+### Curve Recipes
+
+| Visual | Technique |
+|--------|-----------|
+| Value journey (ascending with valley) | `make_interp_spline(x, y, k=3)` through milestone points |
+| Supply/demand S-curves | `scipy.special.expit()` (sigmoid) with offset/scale params |
+| Connected journey phases | Large circles + `make_interp_spline` through centers + `fill_between` |
+| Bubble chart | `ax.scatter()` with varying `s` parameter for bubble size |
+
+### Image Requirements
+- PNG or JPEG only, under 50MB, under 25 megapixels
+- URL max 2KB (use Google Drive download URLs)
+- Image is fetched once and stored in the presentation
+- Transparent background recommended — use `fig.patch.set_alpha(0)`
+- DPI 200 for crisp rendering at slide scale
 
 ---
 
