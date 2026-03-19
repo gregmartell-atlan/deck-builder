@@ -2,8 +2,17 @@
 
 This repository contains the skills used by Claude/Codex to build Google Slides decks:
 
-- `skills/deck/SKILL.md` = main `/deck` skill
-- `skills/ebr/SKILL.md` = `/deck:ebr` skill
+- `skills/deck/SKILL.md` = main `/deck` skill (strategy, problem-solution, onboarding, custom)
+- `skills/ebr/SKILL.md` = `/deck:ebr` skill (data-driven EBRs with supply metrics + live charts)
+- `skills/deck/deck_terminal_ui.py` = live feed preview module (ASCII wireframes in terminal)
+
+### What's New (v3.1 — March 19, 2026)
+
+- **Real supply metrics** — EBR skill now pulls catalog data from `DATA_OPS.ANALYSIS.ASSET_COUNT_BY_NAME` (assets per connector) and `AI_INPUTS.CX.CUSTOMER_WEEKLY_METRICS` (enrichment %, glossary, data products, workflows). No more page-view interaction proxies.
+- **Supply narrative intelligence** — auto-detects whether to frame as "expand supply" or "deepen catalog quality" based on connector count and enrichment percentages.
+- **`styled_element()` helper** — safe multi-style text replacement that computes character indices from segments automatically. Prevents off-by-one font bleed bugs when mixing large stat numbers with small labels.
+- **Live feed preview** — `deck_terminal_ui.py` renders high-fidelity ASCII wireframes of each slide before the build fires. Data-driven charts (horizontal bars, vertical bars, S-curves, proportion bars, KPI cards) with Atlan brand colors via 24-bit ANSI. 72-col max for Claude Code compatibility.
+- **Supply & demand visual slides** — 4 new matplotlib-powered slide templates: Scale Mismatch (log-scale bars), Catalog Depth Waterfall, Supply-Demand S-Curves with gap area, Connector Portfolio (proportion bar + stat cards).
 
 This guide is written for non-technical teammates. You can copy/paste each command exactly as shown.
 
