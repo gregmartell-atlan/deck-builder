@@ -1249,7 +1249,7 @@ class Validator:
 
     NOISE_NUMBERS = (
         set(range(2020, 2031))  # years
-        | set(range(0, 100))     # small numbers (percentages, counts)
+        | set(range(0, 1000))    # small numbers (percentages, counts, compact remainders)
         | {500, 840}             # common narrative numbers
     )
 
@@ -1279,7 +1279,42 @@ class Validator:
                     self._check_numbers(idx, oid, el)
 
         self._check_pacing()
+        self._check_title_consistency()
         return self.issues
+
+    def _check_title_consistency(self):
+        """Flag inconsistent title sizes across content slides.
+
+        Collects the largest font on each slide (the title) and flags
+        any that differ from the majority. Skips slide 1 (title slide
+        uses 42pt intentionally).
+        """
+        title_sizes = {}
+        for idx, slide in enumerate(self.pres.get('slides', [])):
+            if idx == 0:
+                continue
+            max_sz = 0
+            max_text = ''
+            for el in slide.get('pageElements', []):
+                for text, sz in _el_font_sizes(el):
+                    if sz > max_sz and text.strip():
+                        max_sz = sz
+                        max_text = text.strip()[:40]
+            if max_sz > 0:
+                title_sizes[idx] = (max_sz, max_text)
+
+        if len(title_sizes) < 2:
+            return
+
+        sizes = [s for s, _ in title_sizes.values()]
+        expected = max(set(sizes), key=sizes.count)
+
+        for idx, (sz, text) in title_sizes.items():
+            if sz != expected:
+                self.issues.append(Issue(
+                    idx, '', 'consistency', 'warning',
+                    f'Title "{text}..." is {sz}pt but '
+                    f'other slides use {expected}pt'))
 
     def _check_font(self, idx, oid, el):
         bad = _el_fonts(el) - {FONT}
@@ -1315,12 +1350,25 @@ class Validator:
                         'outline': {'propertyState': 'NOT_RENDERED'}}}}))
 
     def _check_text_overflow(self, idx, oid, el):
+        """Flag text overflow on single-line elements only.
+
+        Skips multi-line elements (cards, body text) where wrapping is
+        expected by design. Only flags titles, pills, and other elements
+        where text should fit on one line.
+        """
         w, h = _el_size(el)
         if w <= 0:
             return
+        # Skip tall containers — text wraps by design in cards/body areas
+        if h > emu(0.5):
+            return
+        all_text = _el_text(el)
+        # Skip multi-line text — wrapping is intentional
+        if '\n' in all_text:
+            return
         for text, sz in _el_font_sizes(el):
             text_clean = text.strip()
-            if not text_clean or '\n' in text_clean:
+            if not text_clean:
                 continue
             est = text_width_emu(text_clean, sz)
             if est > w * 0.95:
@@ -1328,15 +1376,10 @@ class Validator:
                 if new_sz < sz:
                     self.issues.append(Issue(
                         idx, oid, 'overflow', 'warning',
-                        f'Text likely overflows: "{text_clean[:35]}..." '
+                        f'Text overflows: "{text_clean[:35]}..." '
                         f'at {sz}pt (est {est/INCH:.1f}" in '
-                        f'{w/INCH:.1f}" box). Suggest {new_sz}pt.',
-                        fix={'updateTextStyle': {
-                            'objectId': oid,
-                            'textRange': {'type': 'ALL'},
-                            'style': {'fontSize': {
-                                'magnitude': new_sz, 'unit': 'PT'}},
-                            'fields': 'fontSize'}}))
+                        f'{w/INCH:.1f}" box). Shorten text or use '
+                        f'smart_text_in().'))
 
     def _check_alignment(self, idx, oid, el):
         if _el_shape_type(el) == 'TEXT_BOX':
@@ -1394,12 +1437,17 @@ class Validator:
             return
         deal_values = set(_flatten_deal(self.deal).values())
         for num in _extract_numbers_from_text(text):
-            if num in self.NOISE_NUMBERS:
+            # Skip small numbers — percentages, counts, compact
+            # remainders (205.9 from "205.9K"), multipliers
+            if num < 1000:
+                continue
+            # Skip years
+            if int(num) in self.NOISE_NUMBERS:
                 continue
             matched = any(
                 abs(num - dv) <= abs(dv) * 0.01
                 for dv in deal_values if dv != 0)
-            if not matched and num > 100:
+            if not matched:
                 self.issues.append(Issue(
                     idx, oid, 'number', 'warning',
                     f'Number {num:,.0f} not found in DEAL dict'
@@ -1427,7 +1475,7 @@ class Healer:
         result = healer.heal()
         print(result.report)
     """
-    FIXABLE = {'font', 'outline', 'overflow', 'alignment'}
+    FIXABLE = {'font', 'outline', 'alignment'}
 
     def __init__(self, pres_id, slides_svc, deal=None):
         self.pres_id = pres_id
