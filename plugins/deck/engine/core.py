@@ -75,6 +75,20 @@ BRAND_COLORS = {
 }
 
 
+# ── Semantic Role Mapping ─────────────────────────────────────────
+ROLE = {
+    'ACTION':    BLUE,      # Primary calls to action, headers, solutions
+    'HIGHLIGHT': CYAN,      # Secondary callouts, separators, key metrics
+    'RISK':      CORAL,     # Risks, blockers, competitive threats
+    'SUCCESS':   EMERALD,   # Outcomes, growth, achievements
+    'AI':        PURPLE,    # AI/Innovation highlights
+    'ATTENTION': GOLD,      # Notes, caveats, things needing focus
+    'INFO':      GRAY,      # Secondary text, captions
+    'ALERT':     PINK,      # High-priority warnings
+    'NEUTRAL':   LTBG,      # Card backgrounds, subtle fills
+}
+
+
 def _color_key(rgb):
     """Round color components to 2 decimals for comparison."""
     if not rgb:
@@ -98,12 +112,12 @@ TYPE_SCALE = {
     'stat_number':    40,
     'subtitle':       12,
     'body':           11,
-    'card_label':      9,
-    'caption':         8,
-    'pill':            9,
+    'card_label':     10,
+    'caption':        10,
+    'pill':           10,
     'quote':          13,
-    'table_header':    9,
-    'table_body':      8,
+    'table_header':   10,
+    'table_body':     10,
 }
 
 # ── Dimensions ────────────────────────────────────────────────────
@@ -188,6 +202,91 @@ class Grid:
     def subtitle_area():
         """Return (x, y, w, h) for the standard subtitle position."""
         return emu(M), emu(0.7), emu(9.0), emu(0.25)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# §2b  LAYOUT ENGINE (Relative Positioning)
+# ═══════════════════════════════════════════════════════════════════
+
+class Layout:
+    """Smart positioning helpers for relative stacks and groups.
+
+    Usage:
+        cards = Layout.distribute(3, emu(9.0), SP['md'], emu(M))
+        x1, w1, x2, w2 = Layout.flex_split(emu(9.0), ratio=0.4)
+        cx = Layout.center(emu(2.0), emu(9.0), emu(M))
+    """
+
+    @staticmethod
+    def distribute(n, total_w_emu, gap_emu, start_x_emu=0):
+        """Return list of (x, w) tuples for N items evenly spaced."""
+        if n < 1:
+            return []
+        w = (total_w_emu - (n - 1) * gap_emu) // n
+        return [(start_x_emu + i * (w + gap_emu), w) for i in range(n)]
+
+    @staticmethod
+    def flex_split(total_w_emu, ratio=0.5, gap_emu=None):
+        """Return (x1, w1, x2, w2) for a two-column split."""
+        gap = gap_emu if gap_emu is not None else SP['md']
+        w1 = int((total_w_emu - gap) * ratio)
+        w2 = total_w_emu - gap - w1
+        return 0, w1, w1 + gap, w2
+
+    @staticmethod
+    def center(item_w_emu, container_w_emu, container_x_emu=0):
+        """Return x_emu to center item_w in container_w."""
+        return container_x_emu + (container_w_emu - item_w_emu) // 2
+
+    @staticmethod
+    def v_stack(items_h_emu, gap_emu, start_y_emu=0):
+        """Return list of y_emu for a vertical stack of items."""
+        y = start_y_emu
+        result = []
+        for h in items_h_emu:
+            result.append(y)
+            y += h + gap_emu
+        return result
+
+
+def group_elements(gid, oids):
+    """Logically group multiple objects so they move together in the UI."""
+    if not oids:
+        return
+    reqs.append({'groupObjects': {
+        'groupObjectId': gid,
+        'childrenObjectIds': oids}})
+
+
+def connector(oid, pid, start_oid, end_oid, start_idx=0, end_idx=0,
+              category='STRAIGHT', color=None, weight=1.0):
+    """Create a smart line that plugs into two existing shapes.
+
+    Connection site indexes for RECTANGLE: 0=Bottom, 1=Left, 2=Top, 3=Right.
+    The line auto-follows if shapes are moved in the UI.
+    """
+    color = color or GRAY
+    reqs.append({'createLine': {
+        'objectId': oid, 'lineCategory': category,
+        'elementProperties': {
+            'pageObjectId': pid,
+            'size': {'width': {'magnitude': 1, 'unit': 'EMU'},
+                     'height': {'magnitude': 1, 'unit': 'EMU'}},
+            'transform': {'scaleX': 1, 'scaleY': 1,
+                          'translateX': 0, 'translateY': 0,
+                          'unit': 'EMU'}}}})
+    reqs.append({'updateLineProperties': {
+        'objectId': oid,
+        'fields': 'lineFill.solidFill.color,weight,startConnection,endConnection',
+        'lineProperties': {
+            'lineFill': {'solidFill': {'color': {'rgbColor': color}}},
+            'weight': {'magnitude': weight, 'unit': 'PT'},
+            'startConnection': {
+                'connectedObjectId': start_oid,
+                'connectionSiteIndex': start_idx},
+            'endConnection': {
+                'connectedObjectId': end_oid,
+                'connectionSiteIndex': end_idx}}}})
 
 
 # ── Table Column Type Specs ───────────────────────────────────────
@@ -313,6 +412,25 @@ def auto_container_height(text, container_w_emu, font_pt, bold=False,
     content_h = text_height_emu(text, container_w_emu, font_pt, bold,
                                 line_spacing)
     return content_h + padding_emu
+
+
+
+# ═══════════════════════════════════════════════════════════════════
+# §3b  INTELLIGENT SYNTHESIS
+# ═══════════════════════════════════════════════════════════════════
+
+def synthesize(text, limit=60):
+    """LLM hook for rewriting dense text into slide-ready bullets.
+
+    Currently a heuristic fallback—returns first sentence if over limit.
+    In production, this would call a remote LLM to rewrite for the medium.
+    """
+    if not text:
+        return ""
+    if len(text) <= limit:
+        return text
+    sentences = text.split('.')
+    return sentences[0].strip() + "."
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -898,6 +1016,285 @@ def sheets_chart(oid, pid, spreadsheet_id, chart_id, l, t, w, h):
                      'height': {'magnitude': h, 'unit': 'EMU'}},
             'transform': {'scaleX': 1, 'scaleY': 1,
                 'translateX': l, 'translateY': t, 'unit': 'EMU'}}}})
+
+
+# ═══════════════════════════════════════════════════════════════════
+# §6b  TIMELINE TEMPLATES
+# ═══════════════════════════════════════════════════════════════════
+
+def timeline_staggered(pid, months, bars, milestones, cards,
+                       note_text=None, title_text='Implementation Timeline'):
+    """Staggered bar timeline — diagonal cascade with circle endpoints,
+    diamond milestones, and description cards below.
+
+    Args:
+        pid: slide objectId
+        months: list of month labels, e.g. ['APR','MAY','JUN','JUL','AUG','SEP']
+        bars: list of (name, start_float, end_float, color) — position in month units
+        milestones: list of (col_pos, title, detail, color) for milestone markers
+        cards: list of (title, desc, color) for bottom description cards
+        note_text: optional footer note string
+        title_text: slide title
+    """
+    pill(f'{pid}_pill', pid, emu(M), emu(0.3), 'IMPLEMENTATION ROADMAP', BLUE, WHITE)
+    label(f'{pid}_title', pid, emu(M), emu(0.65), emu(9.0), emu(0.35),
+          title_text, 20, True, DARK, 'START')
+
+    col_w = emu(1.3)
+    grid_left = emu(1.1)
+
+    # Month headers
+    for i, m in enumerate(months):
+        shape(f'{pid}_mh{i}', pid, grid_left + i * col_w, emu(1.2),
+              col_w - emu(0.05), emu(0.28), LTBG, 'ROUND_RECTANGLE')
+        text_in(f'{pid}_mh{i}', m, 8, True, GRAY)
+
+    # Grid lines
+    for i in range(len(months) + 1):
+        shape(f'{pid}_gl{i}', pid, grid_left + i * col_w - emu(0.025),
+              emu(1.55), emu(0.005), emu(2.3), LTBG)
+
+    # Staggered bars
+    bar_h = emu(0.32)
+    for bi, (bname, start, end, accent) in enumerate(bars):
+        y_pos = emu(1.65 + bi * 0.5)
+        bx = grid_left + emu(start * 1.3)
+        bw = emu((end - start) * 1.3)
+        oid = f'{pid}_bar{bi}'
+
+        light = {k: min(1.0, v * 0.25 + 0.75) for k, v in accent.items()}
+        shape(oid, pid, bx, y_pos, bw, bar_h, light, 'ROUND_RECTANGLE')
+
+        # Circle endpoints
+        shape(f'{oid}_lc', pid, bx - emu(0.06), y_pos + emu(0.07),
+              emu(0.18), emu(0.18), WHITE, 'ELLIPSE')
+        shape(f'{oid}_ld', pid, bx - emu(0.02), y_pos + emu(0.11),
+              emu(0.10), emu(0.10), accent, 'ELLIPSE')
+        rx = bx + bw - emu(0.12)
+        shape(f'{oid}_rc', pid, rx, y_pos + emu(0.07),
+              emu(0.18), emu(0.18), WHITE, 'ELLIPSE')
+        shape(f'{oid}_rd', pid, rx + emu(0.04), y_pos + emu(0.11),
+              emu(0.10), emu(0.10), accent, 'ELLIPSE')
+
+        # Diamond milestone at ~55%
+        shape(f'{oid}_dia', pid, bx + bw * 0.55, y_pos + emu(0.06),
+              emu(0.20), emu(0.20), accent, 'DIAMOND')
+
+        # Bar label
+        textbox(f'{oid}_name', pid, bx + emu(0.15), y_pos + emu(0.02),
+                bw - emu(0.3), bar_h - emu(0.04),
+                [(bname, 8, True, DARK)], 'START')
+
+    # Milestone labels
+    ml_y = emu(1.65 + len(bars) * 0.5 + 0.15)
+    for mi, (col_pos, ml_title, ml_detail, accent) in enumerate(milestones):
+        mx = grid_left + emu(col_pos * 1.3)
+        oid = f'{pid}_ml{mi}'
+        shape(f'{oid}_dia', pid, mx, ml_y, emu(0.16), emu(0.16), accent, 'DIAMOND')
+        textbox(f'{oid}_title', pid, mx + emu(0.22), ml_y - emu(0.03),
+                emu(1.8), emu(0.2), [(ml_title, 10, True, DARK)], 'START')
+        textbox(f'{oid}_date', pid, mx + emu(0.22), ml_y + emu(0.17),
+                emu(1.8), emu(0.18), [(ml_detail, 8, False, accent)], 'START')
+
+    # Description cards
+    card_y = emu(4.25)
+    card_w = emu(9.0 / len(cards) - 0.1)
+    for ci, (ctitle, cdesc, accent) in enumerate(cards):
+        cx = emu(M) + ci * (card_w + emu(0.1))
+        oid = f'{pid}_card{ci}'
+        shape(oid, pid, cx, card_y, card_w, emu(0.9), WHITE, 'ROUND_RECTANGLE')
+        shape(f'{oid}_bar', pid, cx, card_y, emu(0.04), emu(0.9), accent)
+        shape(f'{oid}_dot', pid, cx + emu(0.14), card_y + emu(0.12),
+              emu(0.12), emu(0.12), accent, 'ELLIPSE')
+        textbox(f'{oid}_t', pid, cx + emu(0.32), card_y + emu(0.08),
+                card_w - emu(0.4), emu(0.2), [(ctitle, 9, True, DARK)], 'START')
+        textbox(f'{oid}_d', pid, cx + emu(0.14), card_y + emu(0.35),
+                card_w - emu(0.24), emu(0.5), [(cdesc, 8, False, GRAY)], 'START', 'TOP')
+
+    # Optional note
+    if note_text:
+        shape(f'{pid}_note', pid, emu(M), emu(5.25), emu(9.0), emu(0.25), LTPINK)
+        shape(f'{pid}_noteacc', pid, emu(M), emu(5.25), emu(0.04), emu(0.25), CORAL)
+        textbox(f'{pid}_notet', pid, emu(0.7), emu(5.27), emu(8.5), emu(0.2),
+                [(note_text, 8, False, DARK)], 'START')
+
+
+def timeline_cascading(pid, months, arrows, descs,
+                       note_text=None, title_text='Tentative Implementation Timeline'):
+    """Cascading arrow timeline — stepped arrow bars with month header,
+    alternating row backgrounds, and description cards below.
+
+    Args:
+        pid: slide objectId
+        months: list of month labels
+        arrows: list of (name, start_col, span_cols, row, color)
+        descs: list of (title, desc, color) for bottom description cards
+        note_text: optional footer note
+        title_text: slide title
+    """
+    pill(f'{pid}_pill', pid, emu(M), emu(0.3), 'IMPLEMENTATION ROADMAP', BLUE, WHITE)
+    label(f'{pid}_title', pid, emu(M), emu(0.65), emu(9.0), emu(0.35),
+          title_text, 20, True, DARK, 'START')
+
+    col_w = emu(1.3)
+    grid_left = emu(1.1)
+
+    # Month header bar
+    shape(f'{pid}_mhbar', pid, grid_left, emu(1.15),
+          col_w * len(months) - emu(0.05), emu(0.32), BLUE, 'ROUND_RECTANGLE')
+    for i, m in enumerate(months):
+        textbox(f'{pid}_mh{i}', pid, grid_left + i * col_w, emu(1.15),
+                col_w, emu(0.32), [(m, 9, True, WHITE)], 'CENTER')
+
+    # Row backgrounds
+    row_h = emu(0.52)
+    row_start = emu(1.55)
+    n_rows = max(a[3] for a in arrows) + 1
+    for ri in range(n_rows):
+        bg = LTBG if ri % 2 == 0 else WHITE
+        shape(f'{pid}_rowbg{ri}', pid, grid_left, row_start + ri * row_h,
+              col_w * len(months) - emu(0.05), row_h, bg)
+
+    # Arrow bars
+    for ai, (aname, start, span, row, accent) in enumerate(arrows):
+        y = row_start + row * row_h + emu(0.06)
+        bx = grid_left + emu(start * 1.3)
+        bw = emu(span * 1.3)
+        bh = row_h - emu(0.12)
+        oid = f'{pid}_arrow{ai}'
+
+        shape(oid, pid, bx, y, bw - emu(0.15), bh, accent, 'ROUND_RECTANGLE')
+        text_in(oid, aname, 8, True, WHITE)
+        shape(f'{oid}_tip', pid, bx + bw - emu(0.25), y,
+              emu(0.25), bh, accent, 'RIGHT_ARROW')
+
+    # Description cards
+    card_y = emu(row_start / 914400 + n_rows * 0.52 / 914400 + 0.3)
+    # Simpler: fixed position
+    card_y = emu(4.25)
+    card_w = emu(9.0 / len(descs) - 0.1)
+    for di, (dtitle, ddesc, accent) in enumerate(descs):
+        dx = emu(M) + di * (card_w + emu(0.1))
+        oid = f'{pid}_desc{di}'
+        textbox(f'{oid}_t', pid, dx, card_y, card_w, emu(0.22),
+                [(dtitle, 9, True, accent)], 'CENTER')
+        textbox(f'{oid}_b', pid, dx, card_y + emu(0.25), card_w, emu(0.65),
+                [(ddesc, 8, False, GRAY)], 'CENTER', 'TOP')
+
+    if note_text:
+        label(f'{pid}_foot', pid, emu(M), emu(5.25), emu(9.0), emu(0.2),
+              note_text, 8, False, GRAY, 'START')
+
+
+def timeline_waterfall(pid, phases, month_strip,
+                       title_text='Implementation Phases'):
+    """Waterfall block timeline — descending colored blocks with date labels
+    on the left and a month strip at the bottom.
+
+    Args:
+        pid: slide objectId
+        phases: list of (name, desc, date_range, color) — max 3-4
+        month_strip: list of month labels for the bottom bar
+        title_text: slide title
+    """
+    pill(f'{pid}_pill', pid, emu(M), emu(0.3), 'IMPLEMENTATION ROADMAP', BLUE, WHITE)
+    label(f'{pid}_title', pid, emu(M), emu(0.65), emu(9.0), emu(0.35),
+          title_text, 20, True, DARK, 'START')
+
+    block_w_base = emu(5.0)
+    block_h = emu(0.55)
+    start_x = emu(2.0)
+    start_y = emu(1.4)
+
+    for pi, (pname, pdesc, dates, accent) in enumerate(phases):
+        # Each block shifts right and shrinks slightly
+        bx = start_x + emu(pi * 0.8)
+        by = start_y + emu(pi * 0.75)
+        bw = block_w_base - emu(pi * 0.5)
+        oid = f'{pid}_phase{pi}'
+
+        shape(oid, pid, bx, by, bw, block_h, accent, 'ROUND_RECTANGLE')
+        text_in(oid, pname, 10, True, WHITE)
+
+        # Date label to the left
+        textbox(f'{oid}_dates', pid, emu(M), by + emu(0.05),
+                emu(1.3), block_h - emu(0.1),
+                [(dates, 8, True, GRAY)], 'END')
+
+    # Description cards below
+    card_y = start_y + emu(len(phases) * 0.75 + 0.4)
+    card_w = emu(9.0 / len(phases) - 0.15)
+    for pi, (pname, pdesc, dates, accent) in enumerate(phases):
+        cx = emu(M) + pi * (card_w + emu(0.15))
+        oid = f'{pid}_card{pi}'
+        shape(f'{oid}_dot', pid, cx, card_y, emu(0.14), emu(0.14), accent, 'ELLIPSE')
+        textbox(f'{oid}_t', pid, cx + emu(0.2), card_y - emu(0.03),
+                card_w - emu(0.25), emu(0.2), [(pname, 10, True, DARK)], 'START')
+        textbox(f'{oid}_d', pid, cx + emu(0.2), card_y + emu(0.2),
+                card_w - emu(0.25), emu(0.5), [(pdesc, 9, False, GRAY)], 'START', 'TOP')
+
+    # Month strip at bottom
+    strip_y = emu(4.6)
+    strip_w = emu(9.0 / len(month_strip))
+    # Gradient bar
+    shape(f'{pid}_strip', pid, emu(M), strip_y,
+          emu(9.0), emu(0.35), BLUE, 'ROUND_RECTANGLE')
+    for mi, m in enumerate(month_strip):
+        textbox(f'{pid}_ms{mi}', pid, emu(M) + mi * strip_w, strip_y,
+                strip_w, emu(0.35), [(m, 8, True, WHITE)], 'CENTER')
+
+
+# ═══════════════════════════════════════════════════════════════════
+# §6c  SLIDE TEMPLATES (v4.1)
+# ═══════════════════════════════════════════════════════════════════
+
+DEFAULT_ACCENT_ROTATION = [BLUE, CYAN, EMERALD, PURPLE, PINK, GOLD]
+
+
+def chevron_flow(pid, steps, title_text='Process Overview',
+                 note_text=None):
+    """Full-slide horizontal chevron flow diagram.
+
+    Args:
+        pid: slide objectId
+        steps: list of (label, description, color) tuples
+            e.g. [('Discover', 'Map data sources', BLUE),
+                  ('Build', 'Integrations & model', CYAN),
+                  ('Adopt', 'Rollout & training', EMERALD),
+                  ('Scale', 'Expand domains', PURPLE)]
+            Supports 3-6 steps. Colors default to accent rotation if None.
+        title_text: slide title
+        note_text: optional footer note
+    """
+    n = len(steps)
+    pill(f'{pid}_pill', pid, emu(M), emu(0.3), title_text.upper()[:30], BLUE, WHITE)
+    label(f'{pid}_title', pid, emu(M), emu(0.65), emu(9.0), emu(0.35),
+          title_text, 20, True, DARK, 'START')
+
+    # Distribute chevrons across slide width
+    chevrons = Layout.distribute(n, emu(9.0), emu(0.05), emu(M))
+    chev_y = emu(1.6)
+    chev_h = emu(0.7)
+    desc_y = chev_y + chev_h + emu(0.2)
+
+    for i, ((cx, cw), (lbl, desc, color)) in enumerate(zip(chevrons, steps)):
+        color = color or DEFAULT_ACCENT_ROTATION[i % len(DEFAULT_ACCENT_ROTATION)]
+        oid = f'{pid}_ch{i}'
+
+        # Chevron shape
+        shape(oid, pid, cx, chev_y, cw, chev_h, color, 'CHEVRON')
+        text_in(oid, lbl, 10, True, WHITE, 'CENTER')
+
+        # Description card below
+        textbox(f'{oid}_desc', pid, cx, desc_y, cw, emu(1.2),
+                [(lbl + '\n', 9, True, color),
+                 (desc, 8, False, GRAY)], 'CENTER')
+
+    if note_text:
+        shape(f'{pid}_note_bg', pid, emu(M), emu(4.8), emu(9.0), emu(0.5), LTBG,
+              'ROUND_RECTANGLE')
+        textbox(f'{pid}_note', pid, emu(M + 0.15), emu(4.85), emu(8.7), emu(0.4),
+                [(note_text, 8, False, GRAY)], 'START')
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1841,16 +2238,17 @@ __all__ = [
     # §1 Tokens
     'BLUE', 'CYAN', 'PINK', 'DARK', 'GRAY', 'WHITE', 'DKBLUE',
     'LTBG', 'LTCYAN', 'LTPINK', 'LTGREEN', 'GREEN', 'ORANGE',
-    'CORAL', 'EMERALD', 'PURPLE', 'GOLD', 'BRAND_COLORS',
+    'CORAL', 'EMERALD', 'PURPLE', 'GOLD', 'BRAND_COLORS', 'ROLE',
     'FONT', 'TYPE_SCALE', 'INCH', 'SW', 'SH', 'emu', 'M', 'SP',
-    # §2 Grid
-    'Grid', 'COL_SPECS', 'auto_col_widths',
-    # §3 Measurement
+    # §2 Grid + Layout
+    'Grid', 'Layout', 'COL_SPECS', 'auto_col_widths',
+    # §3 Measurement + Synthesis
     'text_width_emu', 'auto_font', 'will_fit', 'lines_needed',
-    'text_height_emu', 'auto_container_height',
+    'text_height_emu', 'auto_container_height', 'synthesize',
     # §4 Helpers
     'reqs', 'shape', 'bordered', 'dashed', 'text_in', 'smart_text_in',
     'rich_in', 'textbox', 'label', 'new_slide', 'styled_element',
+    'group_elements', 'connector',
     # §5 Tables
     'build_table', 'PROPOSAL_TABLE', 'proposal_table',
     'OPTION_PILLS', 'option_pill',
