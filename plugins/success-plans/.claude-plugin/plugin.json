@@ -1,7 +1,7 @@
 {
   "name": "success-plans",
   "description": "Success Plan and OKR generation for Atlan customers — plan creation, realism review, and Sheet/Slides export",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": {
     "name": "Greg Martell",
     "email": "greg@atlan.com"
