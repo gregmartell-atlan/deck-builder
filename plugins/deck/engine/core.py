@@ -1350,6 +1350,107 @@ def funnel(pid, stages, title_text='Adoption Funnel',
                 emu(8.7), emu(0.4), [(note_text, 8, False, GRAY)], 'START')
 
 
+SCORE_SCALE_COLORS = [PINK, ORANGE, GOLD, EMERALD]
+SCORE_SCALE_LABELS = ['Needs Work', 'Fair', 'Good', 'Excellent']
+
+
+def score_card(pid, criteria, scores, scale_labels=None,
+               scale_colors=None, title_text='Health Score Card',
+               note_text=None):
+    """Full-slide scoring rubric with colored scale.
+
+    Args:
+        pid: slide objectId
+        criteria: list of strings, e.g. ['Data Quality', 'Adoption', 'Governance']
+        scores: list of ints (1-based), e.g. [2, 3, 4] — which column gets the marker
+        scale_labels: list of column headers, default ['Needs Work','Fair','Good','Excellent']
+        scale_colors: list of colors for headers, default [PINK, ORANGE, GOLD, EMERALD]
+        title_text: slide title
+        note_text: optional footer note
+    """
+    labels = scale_labels or SCORE_SCALE_LABELS
+    colors = scale_colors or SCORE_SCALE_COLORS
+    ncols = len(labels)
+
+    pill(f'{pid}_pill', pid, emu(M), emu(0.3), title_text.upper()[:30], BLUE, WHITE)
+    label(f'{pid}_title', pid, emu(M), emu(0.65), emu(9.0), emu(0.35),
+          title_text, 20, True, DARK, 'START')
+
+    # Build headers: "Criteria" + scale labels
+    headers = ['Criteria'] + labels
+
+    # Build rows: criteria name + score markers
+    rows = []
+    for ci, (crit, score) in enumerate(zip(criteria, scores)):
+        row = [crit]
+        for si in range(ncols):
+            if si + 1 == score:
+                row.append('\u25cf')  # filled circle
+            else:
+                row.append('\u25cb')  # open circle
+        rows.append(row)
+
+    # Add legend row
+    rows.append([''] + labels)
+
+    # Column widths: criteria col wide, score cols equal
+    crit_w = emu(3.0)
+    score_col_w = emu((9.0 - 3.0) / ncols)
+    col_widths = [crit_w] + [score_col_w] * ncols
+
+    tbl_y = emu(1.2)
+    tbl_h = emu(0.45 * (len(rows) + 1))
+
+    tbl_reqs = build_table(
+        f'{pid}_tbl', pid, emu(M), tbl_y, emu(9.0), tbl_h,
+        headers, rows, col_widths=col_widths)
+    reqs.extend(tbl_reqs)
+
+    # Color the header cells
+    for si, color in enumerate(colors):
+        reqs.append({'updateTableCellProperties': {
+            'objectId': f'{pid}_tbl',
+            'tableRange': {'location': {'rowIndex': 0, 'columnIndex': si + 1},
+                           'rowSpan': 1, 'columnSpan': 1},
+            'tableCellProperties': {
+                'tableCellBackgroundFill': {
+                    'solidFill': {'color': {'rgbColor': color}}}},
+            'fields': 'tableCellBackgroundFill.solidFill.color'}})
+
+    # Color the legend row cells (last row)
+    legend_ri = len(rows)
+    for si, color in enumerate(colors):
+        reqs.append({'updateTableCellProperties': {
+            'objectId': f'{pid}_tbl',
+            'tableRange': {'location': {'rowIndex': legend_ri, 'columnIndex': si + 1},
+                           'rowSpan': 1, 'columnSpan': 1},
+            'tableCellProperties': {
+                'tableCellBackgroundFill': {
+                    'solidFill': {'color': {'rgbColor': color}}}},
+            'fields': 'tableCellBackgroundFill.solidFill.color'}})
+
+    # Color score markers in data rows
+    for ri, (crit, score) in enumerate(zip(criteria, scores)):
+        if 1 <= score <= ncols:
+            marker_color = colors[score - 1]
+            reqs.append({'updateTextStyle': {
+                'objectId': f'{pid}_tbl',
+                'cellLocation': {'rowIndex': ri + 1, 'columnIndex': score},
+                'textRange': {'type': 'ALL'},
+                'style': {'foregroundColor': {'opaqueColor': {'rgbColor': marker_color}},
+                          'bold': True,
+                          'fontSize': {'magnitude': 14, 'unit': 'PT'}},
+                'fields': 'foregroundColor,bold,fontSize'}})
+
+    if note_text:
+        note_y = tbl_y + tbl_h + emu(0.2)
+        shape(f'{pid}_note_bg', pid, emu(M), note_y, emu(9.0), emu(0.4), LTBG,
+              'ROUND_RECTANGLE')
+        shape(f'{pid}_note_acc', pid, emu(M), note_y, emu(0.04), emu(0.4), BLUE)
+        textbox(f'{pid}_note', pid, emu(M + 0.2), note_y + emu(0.05),
+                emu(8.6), emu(0.3), [(note_text, 8, False, GRAY)], 'START')
+
+
 # ═══════════════════════════════════════════════════════════════════
 # §7  STORYBOARD PREVIEW
 # ═══════════════════════════════════════════════════════════════════
