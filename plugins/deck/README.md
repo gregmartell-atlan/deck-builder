@@ -15,7 +15,7 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-**v3.0** · Author: Greg Martell · Font: Space Grotesk
+**v4.1** · Author: Greg Martell · Font: Space Grotesk
 
 Build polished Google Slides decks programmatically via the Slides API using the Atlan brand system. Every deck is built from code — no manual drag-and-drop.
 
@@ -263,7 +263,7 @@ Build scripts output styled ANSI terminal output with progress tracking:
 
 ---
 
-## 14 Slide Templates
+## 23 Slide Templates
 
 | # | Template | Use Case |
 |---|----------|----------|
@@ -275,12 +275,21 @@ Build scripts output styled ANSI terminal output with progress tracking:
 | 6 | Solution | BLUE accent — solution + feature cards |
 | 7 | Architecture Diagram | Component layouts with bands, borders, connectors |
 | 8 | Big Stats Row | 3-4 large stat cards in a row (40pt numbers) |
-| 9 | Table | Header + alternating rows built from shapes (no native tables) |
+| 9 | Table | Native table with styled header + alternating rows |
 | 10 | Close (dark) | Bold statement + 3 asks + next steps on BLUE |
 | 11 | Before/After | CORAL pain → EMERALD outcome side-by-side |
 | 12 | Risk & Mitigation | Color-coded risk register with owners |
 | 13 | Phased Plan | 3-4 phase columns with arrows, timelines, owners |
 | 14 | Quote | Accent bar + quote text + attribution |
+| 15 | Comparison Table | Side-by-side option comparison (v3.1) |
+| 16 | Hub-Spoke Diagram | Central node + radial connections (v3.1) |
+| 17 | Year 1/Year 2 Roadmap | Two-phase roadmap with milestones (v3.1) |
+| 18 | Staggered Bar Timeline | Diagonal cascade with milestones — `timeline_staggered()` (v4.0) |
+| 19 | Cascading Arrow Timeline | Stepped arrows cascading down — `timeline_cascading()` (v4.0) |
+| 20 | Waterfall Block Timeline | Descending blocks with dates — `timeline_waterfall()` (v4.0) |
+| 21 | **Funnel** | **Tapering stages for adoption/conversion pipelines — `funnel()` (v4.1)** |
+| 22 | **Chevron Flow** | **Horizontal process arrows for workflows — `chevron_flow()` (v4.1)** |
+| 23 | **Score Card** | **Colored rubric table for health assessments — `score_card()` (v4.1)** |
 
 ---
 
@@ -368,7 +377,7 @@ Every build script includes these functions, organized in 3 categories:
 ### Composite Helpers
 | Function | Purpose |
 |----------|---------|
-| `pill()` | Colored pill label (1.8" x 0.24") |
+| `pill()` | Colored pill label (auto-width) |
 | `kpi_card()` | Metric card with accent top bar |
 | `insight_card()` | Card with accent bar + label + title + body |
 | `action_card()` | Numbered action item with blue circle |
@@ -376,8 +385,17 @@ Every build script includes these functions, organized in 3 categories:
 | `sheets_chart()` | Embed linked Google Sheets chart |
 | `numbered_circle()` | Colored numbered circle |
 | `quote_block()` | Quote with left accent bar + attribution |
-| `risk_row()` | Risk/mitigation row with colored dots |
 | `phase_card()` | Single phase in a timeline layout |
+
+### Full-Slide Templates (v4.0+)
+| Function | Purpose |
+|----------|---------|
+| `timeline_staggered()` | Staggered bar timeline with milestones |
+| `timeline_cascading()` | Cascading arrow timeline |
+| `timeline_waterfall()` | Waterfall block timeline |
+| `funnel()` | Adoption/conversion funnel with tapering stages |
+| `chevron_flow()` | Horizontal chevron process flow (3-6 steps) |
+| `score_card()` | Colored rubric/health score table |
 
 ---
 
@@ -438,11 +456,17 @@ This enables:
 ```
 plugins/deck/
 ├── .claude-plugin/
-│   └── plugin.json           # v3.0.0 metadata
+│   └── plugin.json           # v4.1.0 metadata
 ├── README.md                 # This file
+├── engine/
+│   └── core.py               # Deck engine (~2400 lines)
+├── templates/
+│   ├── kickoff_v2.md          # Kickoff template spec (21 slides)
+│   ├── kickoff_v2_raw.json    # Full Slides API JSON export
+│   └── shape_bank_manifest.json # Shape bank for SVG reuse
 └── skills/
     ├── deck/
-    │   └── SKILL.md          # Main deck builder (1,420 lines)
+    │   └── SKILL.md          # Main deck builder (~1,500 lines)
     └── ebr/
         └── SKILL.md          # EBR generator (285 lines)
 ```
@@ -462,7 +486,57 @@ plugins/deck/
 
 | Deck | ID | Notes |
 |------|----|-------|
+| **Eaton Kickoff v2** | [`1fSuVLCPDMCDG9piDcyn4YLG7BymcMTMmDVqSLUWXJuo`](https://docs.google.com/presentation/d/1fSuVLCPDMCDG9piDcyn4YLG7BymcMTMmDVqSLUWXJuo/edit) | **21 slides — canonical kickoff template** |
+| Template Test (v4.1) | [`1oUFhaGf1aHJB5WYml2aY_xhOcJILmX2lNqteTBe8uT0`](https://docs.google.com/presentation/d/1oUFhaGf1aHJB5WYml2aY_xhOcJILmX2lNqteTBe8uT0/edit) | Chevron flow + funnel + score card test |
 | Zoom v8 | `17nd3Ht5rzU_RsirHEmqUL--XHXqgxQS2gcjK_9dmY34` | 19 slides, all fixes applied |
 | Medtronic | `1TQ3gQckXmPfzP0ZPS5XLpCyCt7wUtHlorBXblvCI7YQ` | 16 slides, problem-solution |
 | Architecture Deep Dive | `17YADG2rs4Moe9yXE60wKkfll8R4deDsPQDA0Yq0NE9k` | Architecture mapping reference |
 | Template | `1SOajzd0opagErD3ATLmj77tlSeOEIvlWaqW6l6MfXQU` | Base template for copying |
+
+---
+
+## Release Notes
+
+### v4.1.0 (2026-04-03)
+
+**New Templates:**
+- `funnel()` — Template 21: Adoption/conversion funnel with tapering ROUND_RECTANGLE stages. 3-6 stages, descriptions to the right, optional footer note.
+- `chevron_flow()` — Template 22: Horizontal process flow using native CHEVRON shapes. 3-6 steps with description cards below.
+- `score_card()` — Template 23: Health score rubric using native `build_table()` with colored scale headers (red-to-green), filled/open circle markers, and legend row.
+
+**Semantic Triggers in SKILL.md:**
+- Each new template includes semantic trigger keywords so Claude Code matches natural language requests (e.g. "add a funnel slide" or "show health scores") to the right template function.
+
+**Kickoff Template v2:**
+- Eaton Partnership Kick-Off saved as canonical 21-slide kickoff template
+- Full spec at `templates/kickoff_v2.md` with slide-by-slide layout documentation
+- Raw Slides API JSON at `templates/kickoff_v2_raw.json` for exact reproduction
+
+**Shape Bank Infrastructure:**
+- `bank_copy()` function for copying CUSTOM/SVG shapes between presentations
+- Manifest at `templates/shape_bank_manifest.json` — curate Slidesgo visuals here
+- Enables future templates (pyramid, gauge, cycle) to reuse professional SVG shapes
+
+**Engine Improvements:**
+- `DEFAULT_ACCENT_ROTATION` — standard 6-color rotation for multi-element templates
+- `SCORE_SCALE_COLORS` / `SCORE_SCALE_LABELS` — default 4-point assessment scale
+- Timeline functions (`timeline_staggered`, `timeline_cascading`, `timeline_waterfall`) now exported in `__all__`
+
+### v4.0.0 (2026-03-27)
+
+- Timeline templates: staggered, cascading, waterfall (Templates 18-20)
+- Gemini intelligence merge: ROLE, Layout, connector, group_elements, synthesize
+- Visual QA loop improvements
+
+### v3.1.0 (2026-03-17)
+
+- Comparison Table, Hub-Spoke, Roadmap templates (15-17)
+- Strategic debate system (8 Atlan team personas)
+- Native tables via `build_table()`
+- Sheets-first charts via `sheets_chart()`
+
+### v3.0.0 (2026-03-10)
+
+- Initial release with 14 templates
+- EBR pipeline with Snowflake + Sheets + Slides
+- Engine core: shape helpers, text measurement, validation, self-healing

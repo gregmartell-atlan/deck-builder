@@ -673,11 +673,11 @@ Font: **Space Grotesk** for ALL text. No exceptions.
 | Stat number | 40-42pt | Bold | BLUE or WHITE |
 | Subtitle | 12pt | Normal | GRAY or CYAN |
 | Body text | 11-12pt | Normal | DARK or GRAY |
-| Card label | 9pt | Bold | accent color |
-| Caption/footer | 8pt | Normal | GRAY |
-| Pill text | 9pt | Bold | WHITE on accent |
-| Table header | 9pt | Bold | WHITE on BLUE |
-| Table body | 8pt | Normal | DARK |
+| Card label | 10pt | Bold | accent color |
+| Caption/footer | 10pt | Normal | GRAY |
+| Pill text | 10pt | Bold | WHITE on accent |
+| Table header | 10pt | Bold | WHITE on BLUE |
+| Table body | 10pt | Normal | DARK |
 
 ### Spacing Scale
 
@@ -739,14 +739,16 @@ Each archetype defines a slide sequence, use case, and key engine helpers. Choos
 - CORAL accents Option 1 (typically current/standard), EMERALD accents Option 2 (typically recommended/strategic)
 - Run the Strategic Debate (§2) for any renewal >$100K ARR
 
-### 5. CS Kickoff (Full Template)
+### 5. CS Kickoff v2 (Full Template)
 
-**Slides**: 19
-**Sequence**: Title -> Agenda -> CX Team -> Journey (matplotlib curve) -> Rollout (swim lanes) -> Value Journey (matplotlib S-curve) -> Strategic Alignment -> Driving Factors (4-quadrant) -> Value Breakdown (3-pillar tree) -> Supply & Demand (matplotlib S-curves) -> Domain Prioritization (bubble chart) -> Implementation -> Integration Timeline -> Engagement Model -> Initiatives Matrix -> Next Steps -> Quote -> Close
+**Slides**: 21 (upgraded from 19 in v1)
+**Sequence**: Title (Dark) -> Agenda (2x3 Dark) -> CX Team (Horizontal Cards) -> Section: Journey -> Journey S-Curve (matplotlib) -> Rollout Swim Lanes -> Section: Where We Stand -> OKR Cards (3-up) -> Driving Factors (4-Quadrant) -> Driving Factors Matrix (3-col) -> Domain Prioritization (Bubble Scatter) -> Supply & Demand (matplotlib) -> Implementation Timeline (Staggered) -> Connector Gantt -> First 30 Days (4-Week Sprint) -> Section: Making It Real -> Migration Table -> Risks & Mitigations Table -> Engagement Model -> Success Metrics Table -> Close (Dark)
 **When**: Comprehensive onboarding for strategic accounts that need the full visual treatment
-**Key helpers**: matplotlib -> PNG -> `createImage` for organic curves (journey path, value curve, supply/demand)
-**Reference template**: `1jk9zawbJIfwiWlEVYmXrsSf4WVS0IeBEClXs7UXzjFA`
-**Build scripts**: `/tmp/build_kickoff_template_a.py`, `/tmp/build_kickoff_template_b.py`
+**Key helpers**: matplotlib -> PNG -> `createImage` for organic curves (journey path, supply/demand); `build_table()` for native tables; `timeline_staggered()` for timelines
+**Reference template**: `1fSuVLCPDMCDG9piDcyn4YLG7BymcMTMmDVqSLUWXJuo`
+**Template spec**: `~/.claude/local-plugins/plugins/deck/templates/kickoff_v2.md`
+**Raw JSON**: `~/.claude/local-plugins/plugins/deck/templates/kickoff_v2_raw.json`
+**Prior version (v1)**: `1jk9zawbJIfwiWlEVYmXrsSf4WVS0IeBEClXs7UXzjFA` (19 slides)
 
 ### 6. EBR (Executive Business Review)
 
@@ -788,6 +790,12 @@ Before building any slide element, consult this table to pick the right engine f
 | Customer quote | `quote_block()` |
 | Phased plan column | `phase_card()` |
 | Linked Sheets chart | `sheets_chart()` |
+| Timeline (staggered bars) | `timeline_staggered()` — full slide |
+| Timeline (cascading arrows) | `timeline_cascading()` — full slide |
+| Timeline (waterfall blocks) | `timeline_waterfall()` — full slide |
+| Adoption funnel / pipeline     | `funnel()` — full slide |
+| Process flow / workflow steps  | `chevron_flow()` — full slide |
+| Health score / evaluation      | `score_card()` — full slide |
 | Update existing element | `styled_element()` — auto-index |
 
 ### Template 1: Title Slide (Dark)
@@ -798,7 +806,7 @@ Cyan separator: shape at emu(1.2), emu(2.2), emu(2.0), emu(0.025), CYAN
 Header: 10pt, CYAN, uppercase tracking
 Main title: 42-52pt, WHITE, bold
 Subtitle: 14pt, WHITE (0.8 alpha feel — use CYAN or light muted)
-Footer: 8pt, GRAY-on-blue, bottom-left
+Footer: 10pt, GRAY-on-blue, bottom-left
 ```
 
 ### Template 2: Section Divider (Dark)
@@ -857,16 +865,16 @@ Arrow: thin GRAY rectangle via shape() (emu(0.02) height)
 Background: WHITE or BLUE
 3-4 stat cards in a row, each 1.8-2.2" wide x 1.8" tall
 Number: 40pt, bold, accent color
-Label: 9pt, GRAY
+Label: 10pt, GRAY
 Use kpi_card() for each stat
 ```
 
 ### Template 9: Table Slide (Native Table)
 ```
 USE build_table() for ALL tables — creates real native Slides tables.
-Header row: BLUE bg, WHITE bold 9pt
-Data rows: alternating WHITE / LTBG, 8pt DARK
-Total row: BLUE bg, WHITE bold 9pt, CYAN for discount column
+Header row: BLUE bg, WHITE bold 10pt
+Data rows: alternating WHITE / LTBG, 10pt DARK
+Total row: BLUE bg, WHITE bold 10pt, CYAN for discount column
 Borders: invisible (0.1pt white) with subtle 0.5pt gray inner horizontal dividers
 Status column: colored text (EMERALD=included, BLUE=active, GRAY=not included)
 contentAlignment: MIDDLE on all cells
@@ -878,7 +886,7 @@ Background: BLUE
 Bold statement: 36-40pt, WHITE, single line (MUST fit on one line). Use label()
 3 asks: numbered with CYAN circles via numbered_circle(), 12pt WHITE text via label()
 Next steps box: DKBLUE shape() background, owner + timeline via rich_in() in CYAN
-Footer: 8pt, GRAY
+Footer: 10pt, GRAY
 ```
 
 ### Template 11: Before -> After
@@ -909,7 +917,7 @@ No shape-based rows, no colored dot ellipses. Status text conveys severity.
 
 Native table via build_table() — 4 columns:
   Col 1: Risk / Dependency (10pt bold DARK)
-  Col 2: Status (9pt bold, color-coded: CORAL=OPEN, ORANGE=BLOCKED/AT RISK, GRAY=UNCLEAR)
+  Col 2: Status (10pt bold, color-coded: CORAL=OPEN, ORANGE=BLOCKED/AT RISK, GRAY=UNCLEAR)
   Col 3: Mitigation (10pt DARK)
   Col 4: Owner (10pt bold BLUE)
   Header row: BLUE bg, WHITE bold 10pt
@@ -930,9 +938,9 @@ Horizontal progression:
   Each phase:
     BLUE/CYAN numbered circle via numbered_circle()
     Phase title: 12pt bold DARK
-    Timeframe: 9pt GRAY (e.g., "Weeks 1-4")
-    Deliverables: 9pt bullet list
-    Owner: 8pt BLUE bold
+    Timeframe: 10pt GRAY (e.g., "Weeks 1-4")
+    Deliverables: 10pt bullet list
+    Owner: 10pt BLUE bold
 
 Bottom bar: LTCYAN shape() with progression statement via rich_in()
   e.g., "MDLH -> AI Steward -> Context Studio -> MCP"
@@ -959,7 +967,7 @@ Dark version:
 ```
 Background: WHITE
 Title: 18pt, DARK (e.g., "Your Options — Side by Side"). Use label()
-Subtitle: 9pt, GRAY via label()
+Subtitle: 10pt, GRAY via label()
 
 Native table via build_table() — 3+ columns:
   Col 1: Row labels (bold DARK)
@@ -970,7 +978,7 @@ Native table via build_table() — 3+ columns:
   Status values: EMERALD for positive, CORAL for negative, GRAY for neutral
 
 Key rows to include: price, TCV, ceiling/volume, included features, savings
-Footer: 8pt GRAY with terms + routing info
+Footer: 10pt GRAY with terms + routing info
 ```
 
 ### Template 16: Hub-Spoke Diagram (v3.1)
@@ -980,7 +988,7 @@ Title: 20pt, DARK (e.g., "Why Only Atlan — Cross-Platform Interoperability"). 
 Subtitle: 10pt, GRAY via label()
 
 Center hub: shape() ROUND_RECTANGLE BLUE, ~2.2"x0.9", text_in() WHITE 12pt bold
-4-6 spokes: shape() ROUND_RECTANGLE LTCYAN, ~1.6"x0.7" each, text_in() 8pt bold DARK
+4-6 spokes: shape() ROUND_RECTANGLE LTCYAN, ~1.6"x0.7" each, text_in() 10pt bold DARK
 Connectors: thin shape() CYAN rectangles (emu(0.02) height) linking spokes to hub
 Position spokes radially — 2-3 above hub, 2-3 below
 Bottom callout: shape() LTBG + PURPLE accent bar for urgency/insight message
@@ -1008,6 +1016,123 @@ Two equal-width cards side by side (4.25" each, 0.5" gap):
 
 Bottom bar: shape() LTCYAN + BLUE accent left bar + rich_in() key takeaway
 Use for: phased investments, implementation plans, multi-year partnerships
+```
+
+### Template 18: Staggered Bar Timeline (v4.0)
+```
+Background: WHITE
+Use timeline_staggered() — builds the full slide from data.
+
+Pattern: Diagonal cascade of pastel bars with circle endpoints,
+diamond milestone markers, month header, description cards below.
+Inspired by Slidesgo Project Timeline Infographics.
+
+Args:
+  months: ['APR','MAY','JUN','JUL','AUG','SEP']
+  bars: [(name, start_month, end_month, color), ...]
+  milestones: [(col_pos, title, detail, color), ...]
+  cards: [(title, desc, color), ...]
+
+Use for: 3-4 parallel workstreams with overlapping timelines
+Visual feel: Clean, airy, elegant. Best for executive audiences.
+```
+
+### Template 19: Cascading Arrow Timeline (v4.0)
+```
+Background: WHITE
+Use timeline_cascading() — builds the full slide from data.
+
+Pattern: Stepped arrow bars cascading downward with blue month
+header, alternating row backgrounds, description cards below.
+
+Args:
+  months: ['APR','MAY','JUN','JUL','AUG','SEP']
+  arrows: [(name, start_col, span_cols, row, color), ...]
+  descs: [(title, desc, color), ...]
+
+Use for: 4-5 sequential phases with overlap, project plans
+Visual feel: Structured, professional. Good for technical audiences.
+```
+
+### Template 20: Waterfall Block Timeline (v4.0)
+```
+Background: WHITE
+Use timeline_waterfall() — builds the full slide from data.
+
+Pattern: Descending colored blocks shifting right, date labels
+on left, description cards below, month strip at bottom.
+
+Args:
+  phases: [(name, desc, date_range, color), ...] — max 3-4
+  month_strip: ['Apr','May','Jun','Jul','Aug','Sep']
+
+Use for: 3 major phases, emphasis on duration and sequence
+Visual feel: Bold, simple. Best for high-level overviews.
+```
+
+### Template 21: Funnel (v4.1)
+```
+Background: WHITE
+Use funnel() — builds the full slide from data.
+
+Semantic triggers: "funnel", "adoption funnel", "conversion funnel",
+"maturity model", "pipeline stages", "narrowing stages"
+
+Pattern: Vertically stacked rounded rectangles tapering from wide
+to narrow. Each stage has a colored bar with white label text and
+a description to the right. Clean, modern, professional.
+
+Args:
+  stages: [('Awareness', '500 users invited', BLUE),
+           ('Activation', '200 logged in', CYAN),
+           ('Adoption', '80 weekly active', EMERALD),
+           ('Advocacy', '15 power users', PURPLE)]
+
+Use for: Adoption funnels, sales pipelines, maturity progressions
+Visual feel: Linear tapering bars. 3-6 stages.
+```
+
+### Template 22: Chevron Flow (v4.1)
+```
+Background: WHITE
+Use chevron_flow() — builds the full slide from data.
+
+Semantic triggers: "chevron flow", "process steps", "workflow",
+"onboarding steps", "horizontal flow", "step by step"
+
+Pattern: Horizontal row of native CHEVRON shapes, each a different
+accent color, with step title inside and description card below.
+Supports 3-6 steps, auto-sizes to fit.
+
+Args:
+  steps: [('Discover', 'Map data sources', BLUE),
+          ('Build', 'Integrations & model', CYAN),
+          ('Adopt', 'Rollout & training', EMERALD),
+          ('Scale', 'Expand domains', PURPLE)]
+
+Use for: Process overviews, onboarding workflows, implementation phases
+Visual feel: Forward momentum. Arrows pointing right.
+```
+
+### Template 23: Score Card (v4.1)
+```
+Background: WHITE
+Use score_card() — builds the full slide from data.
+
+Semantic triggers: "score card", "rubric", "evaluation matrix",
+"health score", "rating table", "assessment", "grading"
+
+Pattern: Native table with colored header columns (red-to-green
+gradient), criteria rows with filled/open circle markers, and
+a colored legend row at bottom. Optional footer note bar.
+
+Args:
+  criteria: ['Data Quality', 'Adoption', 'Governance']
+  scores: [3, 2, 4]  — 1-based column index
+  scale_labels: ['Needs Work', 'Fair', 'Good', 'Excellent']
+
+Use for: Customer health assessments, QBR scoring, maturity evaluations
+Visual feel: Clean rubric grid. Immediately readable scores.
 ```
 
 ---

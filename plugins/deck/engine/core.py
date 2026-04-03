@@ -1331,13 +1331,13 @@ def funnel(pid, stages, title_text='Adoption Funnel',
         oid = f'{pid}_st{i}'
 
         w = int(max_w - i * (max_w - min_w) / max(n - 1, 1))
-        x = Layout.center(w, emu(SW))
+        x = Layout.center(w, SW)
 
         shape(oid, pid, x, y, w, stage_h, color, 'ROUND_RECTANGLE')
         text_in(oid, lbl, 11, True, WHITE, 'CENTER')
 
         desc_x = x + w + desc_x_offset
-        desc_w = emu(SW) - desc_x - emu(M)
+        desc_w = SW - desc_x - emu(M)
         if desc_w > emu(0.5):
             textbox(f'{oid}_desc', pid, desc_x, y, desc_w, stage_h,
                     [(desc, 9, False, GRAY)], 'START')
