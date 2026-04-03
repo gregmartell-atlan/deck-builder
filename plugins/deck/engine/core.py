@@ -1297,6 +1297,59 @@ def chevron_flow(pid, steps, title_text='Process Overview',
                 [(note_text, 8, False, GRAY)], 'START')
 
 
+def funnel(pid, stages, title_text='Adoption Funnel',
+           note_text=None):
+    """Full-slide funnel diagram with tapering stages.
+
+    Args:
+        pid: slide objectId
+        stages: list of (label, description, color) tuples
+            e.g. [('Awareness', '500 users invited', BLUE),
+                  ('Activation', '200 logged in first week', CYAN),
+                  ('Adoption', '80 weekly active', EMERALD),
+                  ('Advocacy', '15 power users', PURPLE)]
+            Supports 3-6 stages. Width tapers from widest to narrowest.
+        title_text: slide title
+        note_text: optional footer note
+    """
+    n = len(stages)
+    pill(f'{pid}_pill', pid, emu(M), emu(0.3), title_text.upper()[:30], BLUE, WHITE)
+    label(f'{pid}_title', pid, emu(M), emu(0.65), emu(9.0), emu(0.35),
+          title_text, 20, True, DARK, 'START')
+
+    max_w = emu(6.0)
+    min_w = emu(2.5)
+    stage_h = emu(0.55)
+    gap = emu(0.08)
+    start_y = emu(1.3)
+    desc_x_offset = emu(0.3)
+
+    y_positions = Layout.v_stack([stage_h] * n, gap, start_y)
+
+    for i, (y, (lbl, desc, color)) in enumerate(zip(y_positions, stages)):
+        color = color or DEFAULT_ACCENT_ROTATION[i % len(DEFAULT_ACCENT_ROTATION)]
+        oid = f'{pid}_st{i}'
+
+        w = int(max_w - i * (max_w - min_w) / max(n - 1, 1))
+        x = Layout.center(w, emu(SW))
+
+        shape(oid, pid, x, y, w, stage_h, color, 'ROUND_RECTANGLE')
+        text_in(oid, lbl, 11, True, WHITE, 'CENTER')
+
+        desc_x = x + w + desc_x_offset
+        desc_w = emu(SW) - desc_x - emu(M)
+        if desc_w > emu(0.5):
+            textbox(f'{oid}_desc', pid, desc_x, y, desc_w, stage_h,
+                    [(desc, 9, False, GRAY)], 'START')
+
+    if note_text:
+        note_y = y_positions[-1] + stage_h + emu(0.4)
+        shape(f'{pid}_note_bg', pid, emu(M), note_y, emu(9.0), emu(0.5), LTBG,
+              'ROUND_RECTANGLE')
+        textbox(f'{pid}_note', pid, emu(M + 0.15), note_y + emu(0.05),
+                emu(8.7), emu(0.4), [(note_text, 8, False, GRAY)], 'START')
+
+
 # ═══════════════════════════════════════════════════════════════════
 # §7  STORYBOARD PREVIEW
 # ═══════════════════════════════════════════════════════════════════
