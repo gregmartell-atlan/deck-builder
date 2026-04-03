@@ -2410,6 +2410,11 @@ __all__ = [
     'pill', 'kpi_card', 'insight_card', 'action_card', 'feature_card',
     'benefit_card', 'numbered_circle', 'quote_block', 'phase_card',
     'sheets_chart',
+    # §6b Timeline templates (v4.0)
+    'timeline_staggered', 'timeline_cascading', 'timeline_waterfall',
+    # §6c Slide templates (v4.1)
+    'DEFAULT_ACCENT_ROTATION', 'SCORE_SCALE_COLORS', 'SCORE_SCALE_LABELS',
+    'chevron_flow', 'funnel', 'score_card',
     # §7 Storyboard
     'slide_spec', 'storyboard',
     # §8 Reconciliation
